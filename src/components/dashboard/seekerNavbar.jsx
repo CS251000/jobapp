@@ -9,15 +9,17 @@ export default function SeekerNavbar() {
   const { user, isSignedIn } = useUser();
   return (
     <nav className="bg-white shadow-sm">
-      <div className="container mx-auto px-4 py-3 flex items-center gap-96">
+      <div className="container mx-auto px-4 py-3 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2">
             {/* Updated logo icon */}
             <Briefcase className="h-8 w-8 text-blue-600" />
             <span className="font-bold text-xl text-blue-600">JOBAPP</span>
           </Link>
 
-        <div className=" flex items-center gap-6 text-black font-semibold">
-          Get a Job Quickly
+        <div className="hidden md:block flex items-center gap-6 text-black font-semibold">
+          <span className="text-2xl font-bold text-center text-indigo-700">
+          Job Seeker
+        </span>
         </div>
 
         <div className="flex items-center gap-3">

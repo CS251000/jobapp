@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useUser, SignInButton } from "@clerk/nextjs";
-import { positions } from "@/utils/constants";
+import { jobLocations, jobTypes, positions, skills } from "@/utils/constants";
 
 import OutlinedInput from "@mui/material/OutlinedInput";
 import InputLabel from "@mui/material/InputLabel";
@@ -13,6 +13,26 @@ import ListItemText from "@mui/material/ListItemText";
 import Select, { SelectChangeEvent } from "@mui/material/Select";
 import Checkbox from "@mui/material/Checkbox";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { CalendarIcon } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Select as ShadSelect,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Box } from "@mui/material";
+import StateCitySelect from "@/components/form/stateCityDropdown";
 const ITEM_HEIGHT = 48;
 const ITEM_PADDING_TOP = 8;
 const MenuProps = {
@@ -37,14 +57,14 @@ export default function JobSeekerSignupPage() {
     city: "",
     state: "",
     zip: "",
-    jobType: [],
-    skills: "",
+    jobRoles: [],
+    skills: [],
     resume: null,
     salary: 1000,
     experience: 0,
-    availability: "Full-time",
+    availability: "Full-Time",
     startDate: "",
-    jobLocation: "Remote",
+    jobLocation: "Onsite",
   });
 
   // Prefill user info once loaded
@@ -70,13 +90,22 @@ export default function JobSeekerSignupPage() {
     }
   };
 
-  const handleJobTypeChange = (event) => {
+  const handleJobRolesChange = (event) => {
     const {
       target: { value },
     } = event;
     setForm((prev) => ({
       ...prev,
-      jobType: typeof value === "string" ? value.split(",") : value,
+      jobRoles: typeof value === "string" ? value.split(",") : value,
+    }));
+  };
+  const handleSkillsChange = (event) => {
+    const {
+      target: { value },
+    } = event;
+    setForm((prev) => ({
+      ...prev,
+      skills: typeof value === "string" ? value.split(",") : value,
     }));
   };
 
@@ -108,7 +137,11 @@ export default function JobSeekerSignupPage() {
               <div
                 key={s}
                 className={`w-8 h-8 rounded-full flex items-center justify-center cursor-pointer 
-                  ${step === s ? "bg-indigo-600 text-white" : "bg-gray-200 text-gray-500"}`}
+                  ${
+                    step === s
+                      ? "bg-indigo-600 text-white"
+                      : "bg-gray-200 text-gray-500"
+                  }`}
                 onClick={() => setStep(s)}
               >
                 {s}
@@ -157,22 +190,20 @@ export default function JobSeekerSignupPage() {
                       className="mt-1 block w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {["city", "state", "zip"].map((fld) => (
-                      <div key={fld}>
-                        <label className="block text-sm font-semibold text-gray-600">
-                          {fld.charAt(0).toUpperCase() + fld.slice(1)}
-                        </label>
-                        <input
-                          type="text"
-                          name={fld}
-                          value={form[fld]}
-                          onChange={handleChangeSimple}
-                          className="mt-1 block w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        />
-                      </div>
-                    ))}
-                  </div>
+                  <StateCitySelect
+                    stateValue={form.state}
+                    cityValue={form.city}
+                    zipValue={form.zip}
+                    onStateChange={(newState) =>
+                      setForm((f) => ({ ...f, state: newState }))
+                    }
+                    onCityChange={(newCity) =>
+                      setForm((f) => ({ ...f, city: newCity }))
+                    }
+                    onZipChange={(newZip) =>
+                      setForm((f) => ({ ...f, zip: newZip }))
+                    }
+                  />
                 </div>
               </div>
             </>
@@ -180,58 +211,115 @@ export default function JobSeekerSignupPage() {
 
           {step === 2 && (
             <div className="flex flex-col items-center">
-
               <h1 className="font-bold text-blue-700 text-2xl mb-4 text-center">
                 Select Roles to Apply & Skills
               </h1>
               <FormControl sx={{ m: 1, width: 300 }}>
-                <InputLabel id="jobtype-label">Job Roles</InputLabel>
+                <InputLabel id="jobrole-label">Job Roles</InputLabel>
                 <Select
-                  labelId="jobtype-label"
+                  labelId="jobrole-label"
                   multiple
-                  value={form.jobType}
-                  onChange={handleJobTypeChange}
+                  value={form.jobRoles}
+                  onChange={handleJobRolesChange}
                   input={<OutlinedInput label="Job Roles" />}
                   renderValue={(selected) => selected.join(", ")}
-                  MenuProps={MenuProps}
+                  MenuProps={{
+                    PaperProps: {
+                      sx: {
+                        width: "40vw",
+                        height: "100vh",
+                        maxHeight: "80vh",
+                        overflow: "auto",
+                        position: "fixed",
+                        top: 0,
+                        left: 0,
+                        zIndex: 1300,
+                        bgcolor: "background.paper",
+                      },
+                    },
+                    anchorOrigin: {
+                      vertical: "top",
+                      horizontal: "left",
+                    },
+                    transformOrigin: {
+                      vertical: "top",
+                      horizontal: "left",
+                    },
+                  }}
                 >
                   {positions.map((pos) => (
                     <MenuItem key={pos.key} value={pos.value}>
-                      <Checkbox checked={form.jobType.includes(pos.value)} />
+                      <Checkbox checked={form.jobRoles.includes(pos.value)} />
                       <ListItemText primary={pos.value} />
                     </MenuItem>
                   ))}
                 </Select>
               </FormControl>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-600">
-                  Skills
-                </label>
-                <input
-                  type="text"
-                  name="skills"
+              <FormControl sx={{ m: 1, width: 300 }}>
+                <InputLabel id="skill-label">Skills</InputLabel>
+                <Select
+                  labelId="skill-label"
+                  multiple
                   value={form.skills}
-                  onChange={handleChangeSimple}
-                  placeholder="e.g. Forklift, Excel, Customer Service"
-                  className="mt-1 block w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
+                  onChange={handleSkillsChange}
+                  input={<OutlinedInput label="Skill Roles" />}
+                  renderValue={(selected) => selected.join(", ")}
+                  MenuProps={{
+                    PaperProps: {
+                      sx: {
+                        width: "40vw",
+                        height: "100vh",
+                        maxHeight: "80vh",
+                        overflow: "auto",
+                        position: "fixed",
+                        top: 0,
+                        left: 0,
+                        zIndex: 1300,
+                        bgcolor: "background.paper",
+                      },
+                    },
+                    anchorOrigin: {
+                      vertical: "top",
+                      horizontal: "left",
+                    },
+                    transformOrigin: {
+                      vertical: "top",
+                      horizontal: "left",
+                    },
+                  }}
+                >
+                  {skills.map((pos) => (
+                    <MenuItem key={pos.key} value={pos.value}>
+                      <Checkbox checked={form.skills.includes(pos.value)} />
+                      <ListItemText primary={pos.value} />
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             </div>
           )}
 
           {step === 3 && (
             <div>
-              <h1 className="font-bold text-blue-700 text-2xl mb-4 text-center">
+              <h1 className="font-bold text-blue-700 text-2xl mb-5 text-center">
                 Experience & Availability
               </h1>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-2 gap-6 my-4">
                 {[
-                  { label: "Expected Salary ($)", name: "salary", type: "number" },
-                  { label: "Years of Experience", name: "experience", type: "number" },
+                  {
+                    label: "Expected Salary ($)",
+                    name: "salary",
+                    type: "number",
+                  },
+                  {
+                    label: "Years of Experience",
+                    name: "experience",
+                    type: "number",
+                  },
                 ].map((field) => (
                   <div key={field.name}>
-                    <label className="block text-sm font-semibold text-gray-600">
+                    <label className="block text-sm font-semibold text-gray-600 py-1">
                       {field.label}
                     </label>
                     <input
@@ -245,55 +333,96 @@ export default function JobSeekerSignupPage() {
                 ))}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-600">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                {/* job availability */}
+                <div className="flex flex-col">
+                  <label className="block text-sm font-semibold text-gray-600 py-1">
                     Availability
                   </label>
-                  <select
-                    name="availability"
+                  <ShadSelect
                     value={form.availability}
-                    onChange={handleChangeSimple}
-                    className="mt-1 block w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    onValueChange={(val) =>
+                      setForm((prev) => ({ ...prev, availability: val }))
+                    }
                   >
-                    <option>Full-time</option>
-                    <option>Part-time</option>
-                    <option>Contract</option>
-                    <option>Internship</option>
-                  </select>
+                    <SelectTrigger className="w-auto">
+                      <SelectValue placeholder="Select Your Availability" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {jobTypes.map((type) => (
+                          <SelectItem key={type.key} value={type.value}>
+                            {type.value}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </ShadSelect>
                 </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-600">
-                    Preferred Job Location
+                {/* job location */}
+                <div className="flex flex-col">
+                  <label className="block text-sm font-semibold text-gray-600 py-1">
+                    Job Location
                   </label>
-                  <select
-                    name="jobLocation"
+                  <ShadSelect
                     value={form.jobLocation}
-                    onChange={handleChangeSimple}
-                    className="mt-1 block w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    onValueChange={(val) =>
+                      setForm((prev) => ({ ...prev, jobLocation: val }))
+                    }
                   >
-                    <option>Remote</option>
-                    <option>On-site</option>
-                    <option>Hybrid</option>
-                  </select>
+                    <SelectTrigger className="w-auto">
+                      <SelectValue placeholder="Select Job Location" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {jobLocations.map((type) => (
+                          <SelectItem key={type.key} value={type.value}>
+                            {type.value}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </ShadSelect>
                 </div>
               </div>
-
+              <label className="block text-sm font-semibold text-gray-600 py-1 mt-2">
+                Available Start Date
+              </label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-[240px] justify-start text-left font-normal hover:cursor-pointer",
+                      !form.startDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon />
+                    {form.startDate ? (
+                      format(form.startDate, "PPP")
+                    ) : (
+                      <span>Pick a date</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={form.startDate}
+                    onSelect={(date) => {
+                      if (date) {
+                        setForm((prev) => ({
+                          ...prev,
+                          startDate: date,
+                        }));
+                      }
+                    }}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
               <div>
-                <label className="block text-sm font-semibold text-gray-600">
-                  Available Start Date
-                </label>
-                <input
-                  type="date"
-                  name="startDate"
-                  value={form.startDate}
-                  onChange={handleChangeSimple}
-                  className="mt-1 block w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-600">
+                <label className="block text-sm font-semibold text-gray-600 mt-4">
                   Resume (PDF)
                 </label>
                 <input
@@ -301,7 +430,7 @@ export default function JobSeekerSignupPage() {
                   name="resume"
                   accept=".pdf"
                   onChange={handleChangeSimple}
-                  className="mt-1 block w-full text-gray-600"
+                  className="mt-1 block w-full md:w-auto text-gray-600 bg-gray-100 rounded-4xl px-2 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 file:cursor-pointer file:bg-gray-300 file:text-gray-700 file:border-none file:rounded-lg file:py-1 file:px-2 hover:file:bg-gray-400"
                 />
               </div>
             </div>
@@ -327,7 +456,7 @@ export default function JobSeekerSignupPage() {
                 Next
               </Button>
             )}
-            {step==3&& (
+            {step == 3 && (
               <Button
                 type="submit"
                 className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"

@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useUser, SignInButton } from "@clerk/nextjs";
 import { jobLocations, jobTypes, positions, skills } from "@/utils/constants";
-
+import { supabase } from "@/utils/supabase/supabaseClient";
 import OutlinedInput from "@mui/material/OutlinedInput";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
@@ -31,6 +31,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+
 import { Box } from "@mui/material";
 import StateCitySelect from "@/components/form/stateCityDropdown";
 const ITEM_HEIGHT = 48;
@@ -46,6 +48,7 @@ const MenuProps = {
 
 export default function JobSeekerSignupPage() {
   const { user, isSignedIn, isLoaded } = useUser();
+  const [submitting, setSubmitting] = useState(false);
   const router = useRouter();
 
   const [form, setForm] = useState({
@@ -60,11 +63,14 @@ export default function JobSeekerSignupPage() {
     jobRoles: [],
     skills: [],
     resume: null,
-    salary: 1000,
+    expectedSalary: 1000,
     experience: 0,
     availability: "Full-Time",
     startDate: "",
     jobLocation: "Onsite",
+    aboutMe: "",
+    willingToRelocate: false,
+    profilePictureUrl: "",
   });
 
   // Prefill user info once loaded
@@ -75,6 +81,7 @@ export default function JobSeekerSignupPage() {
         fullName: user.fullName ?? "",
         email: user.emailAddresses[0]?.emailAddress ?? "",
         phone: user.phoneNumbers[0]?.phoneNumber ?? "",
+        profilePicture: user.imageUrl || "",
       }));
     }
   }, [isLoaded, user]);
@@ -109,9 +116,36 @@ export default function JobSeekerSignupPage() {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
+    setSubmitting(true);
     e.preventDefault();
-    console.log("Job Seeker Signup Data:", form);
+    let resumeUrl = "";
+    if (form.resume) {
+      const file = form.resume;
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${user.id}_${Date.now()}.${fileExt}`;
+      const { data, error } = await supabase.storage
+        .from("resumes")
+        .upload(fileName, file, {
+          cacheControl: "3600",
+          upsert: false,
+        });
+
+      if (error) {
+        console.error("Upload error:", error);
+        alert("Failed to upload resume.");
+        return;
+      }
+
+      const { data: urlData } = supabase.storage
+        .from("resumes")
+        .getPublicUrl(data.path);
+      resumeUrl = urlData.publicUrl;
+    }
+    setSubmitting(true);
+    const payload = { ...form, resumeUrl };
+    console.log("Final payload:", payload);
+
     router.push("/job-seeker/dashboard");
   };
 
@@ -175,6 +209,21 @@ export default function JobSeekerSignupPage() {
                     />
                   </div>
                 ))}
+                {!user.imageUrl && (
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-600">
+                      Profile Image URL
+                    </label>
+                    <input
+                      type="text"
+                      name="profileImage"
+                      value={form.profilePictureUrl}
+                      onChange={handleChangeSimple}
+                      className="mt-1 block w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      placeholder="Enter link to your profile picture"
+                    />
+                  </div>
+                )}
 
                 {/* Address / City / State / ZIP */}
                 <div className="md:col-span-2 space-y-6">
@@ -297,6 +346,18 @@ export default function JobSeekerSignupPage() {
                   ))}
                 </Select>
               </FormControl>
+              <div className="w-full">
+                <label className="block text-sm font-semibold text-gray-600 py-1">
+                  About Me
+                </label>
+                <Textarea
+                  placeholder="Tell more about yourself (skills,past work,interests,relevant links,etc.)"
+                  className={"w-full p-2 border border-gray-300 rounded-md"}
+                  value={form.aboutMe}
+                  name="aboutMe"
+                  onChange={handleChangeSimple}
+                />
+              </div>
             </div>
           )}
 
@@ -308,8 +369,8 @@ export default function JobSeekerSignupPage() {
               <div className="grid grid-cols-2 gap-6 my-4">
                 {[
                   {
-                    label: "Expected Salary ($)",
-                    name: "salary",
+                    label: "Expected Salary (₹)",
+                    name: "expectedSalary",
                     type: "number",
                   },
                   {
@@ -385,42 +446,68 @@ export default function JobSeekerSignupPage() {
                   </ShadSelect>
                 </div>
               </div>
-              <label className="block text-sm font-semibold text-gray-600 py-1 mt-2">
-                Available Start Date
-              </label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant={"outline"}
-                    className={cn(
-                      "w-[240px] justify-start text-left font-normal hover:cursor-pointer",
-                      !form.startDate && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon />
-                    {form.startDate ? (
-                      format(form.startDate, "PPP")
-                    ) : (
-                      <span>Pick a date</span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={form.startDate}
-                    onSelect={(date) => {
-                      if (date) {
-                        setForm((prev) => ({
-                          ...prev,
-                          startDate: date,
-                        }));
-                      }
-                    }}
-                    initialFocus
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                {/* Available Start Date */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-600 py-1 mt-2">
+                    Available Start Date
+                  </label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant={"outline"}
+                        className={cn(
+                          "w-full md:w-[240px] justify-start text-left font-normal hover:cursor-pointer",
+                          !form.startDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {form.startDate ? (
+                          format(form.startDate, "PPP")
+                        ) : (
+                          <span>Pick a date</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={form.startDate}
+                        onSelect={(date) => {
+                          if (date) {
+                            setForm((prev) => ({
+                              ...prev,
+                              startDate: date,
+                            }));
+                          }
+                        }}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                {/* Willing to Relocate */}
+                <div className="flex items-center space-x-2 mt-8">
+                  <Checkbox
+                    id="willingTorelocate"
+                    checked={form.willingToRelocate}
+                    onChange={(checked) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        willingToRelocate: checked ? true : false,
+                      }))
+                    }
                   />
-                </PopoverContent>
-              </Popover>
+                  <label
+                    htmlFor="willingTorelocate"
+                    className="text-sm font-medium leading-none"
+                  >
+                    Are you willing to relocate?
+                  </label>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-semibold text-gray-600 mt-4">
                   Resume (PDF)
@@ -438,6 +525,7 @@ export default function JobSeekerSignupPage() {
 
           {/* Navigation Buttons */}
           <div className="flex justify-between pt-4">
+            {step == 1 && <Button>Skip form</Button>}
             {step > 1 && (
               <Button
                 type="button"
@@ -456,14 +544,22 @@ export default function JobSeekerSignupPage() {
                 Next
               </Button>
             )}
-            {step == 3 && (
-              <Button
-                type="submit"
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-              >
-                Submit
-              </Button>
-            )}
+            {step === 3 &&
+              (submitting ? (
+                <Button
+                  disabled
+                  className="px-4 py-2 bg-gray-400 text-white rounded-lg"
+                >
+                  Uploading...
+                </Button>
+              ) : (
+                <Button
+                  type="submit"
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                >
+                  Submit
+                </Button>
+              ))}
           </div>
         </form>
       </div>

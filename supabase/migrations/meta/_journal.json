@@ -8,6 +8,20 @@
       "when": 1748454923925,
       "tag": "0000_rare_starfox",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1748712659749,
+      "tag": "0001_familiar_killmonger",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1748714395147,
+      "tag": "0002_fixed_zeigeist",
+      "breakpoints": true
     }
   ]
 }

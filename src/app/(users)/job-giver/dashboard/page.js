@@ -11,7 +11,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-
+import { Button } from '@/components/ui/button';
+import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 const mockApplicants = [
   {
     id: 1,
@@ -43,21 +45,30 @@ const mockApplicants = [
 ];
 
 export default function JobApplicantsPage() {
+  const searchParams= useSearchParams();
+  const companyId= searchParams.get('companyId');
 
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <h1 className="text-3xl font-bold">Job Applicants</h1>
-        </header>
+    <>
+    <Link href={`/job-giver/publish-job?companyId=${companyId}`}>
+    <Button>
+      Publish a job
+    </Button>
+    </Link>
+    </>
+    // <div className="min-h-screen bg-gray-50 p-6">
+    //   <div className="max-w-7xl mx-auto space-y-6">
+    //     <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    //       <h1 className="text-3xl font-bold">Job Applicants</h1>
+    //     </header>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {mockApplicants.map((applicant) => (
-            <JobApplicantCard key={applicant.id} applicant={applicant} />
-          ))}
-        </div>
-      </div>
-    </div>
+    //     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+    //       {mockApplicants.map((applicant) => (
+    //         <JobApplicantCard key={applicant.id} applicant={applicant} />
+    //       ))}
+    //     </div>
+    //   </div>
+    // </div>
   );
 }

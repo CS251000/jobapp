@@ -39,9 +39,11 @@ export const companyProfiles = pgTable(
     companyId: uuid('company_id').defaultRandom().primaryKey(),
     clerkUserId: varchar('clerk_user_id', { length: 255 })
       .notNull()
-      .references(() => users.clerkUserId, { onDelete: 'cascade' }),
+      .references(() => users.clerkUserId, { onDelete: 'cascade' })
+      .unique(),
     companyName: varchar('company_name', { length: 255 }).notNull(),
     contactPerson: varchar('contact_person', { length: 255 }),
+    email:varchar('email'),
     phone: varchar('phone', { length: 50 }),
     website: varchar('website', { length: 255 }),
     address: text('address'),
@@ -133,6 +135,8 @@ export const jobPostings = pgTable(
     jobLocationAddress: text('job_location_address'),
     jobLocationCity: varchar('job_location_city', { length: 100 }),
     jobLocationState: varchar('job_location_state', { length: 100 }),
+    zipCode:varchar('zip_code'),
+    jobRole: text("job_role"),
     applicationDeadline: date('application_deadline').notNull(),
     jobDescription: text('job_description'),
     keyResponsibilities: text('key_responsibilities'),

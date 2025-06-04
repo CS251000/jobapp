@@ -84,6 +84,7 @@ export default function JobSeekerSignupPage() {
     fetchRoles();
   }, []);
 
+
   const [form, setForm] = useState({
     fullName: "",
     clerkId: "",
@@ -105,6 +106,7 @@ export default function JobSeekerSignupPage() {
     willingToRelocate: false,
     profilePictureUrl: "",
   });
+ 
 
   useEffect(() => {
     if (isLoaded && user) {
@@ -116,6 +118,7 @@ export default function JobSeekerSignupPage() {
         phone: user.phoneNumbers[0]?.phoneNumber ?? "",
         profilePictureUrl: user.imageUrl || "",
       }));
+
     }
   }, [isLoaded, user]);
 
@@ -187,7 +190,7 @@ export default function JobSeekerSignupPage() {
       resumeUrl = urlData.publicUrl;
     }
 
-    // 2. Build payload – note: wrap availability & jobLocation into arrays
+    
     const payload = {
       clerkId: form.clerkId,
       resumeUrl,

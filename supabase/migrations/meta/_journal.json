@@ -22,6 +22,27 @@
       "when": 1748714395147,
       "tag": "0002_fixed_zeigeist",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1748789785105,
+      "tag": "0003_clumsy_the_phantom",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1748803701354,
+      "tag": "0004_magical_colleen_wing",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1748804938862,
+      "tag": "0005_parallel_wolverine",
+      "breakpoints": true
     }
   ]
 }

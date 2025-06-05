@@ -1,20 +1,16 @@
+// app/job-seeker-signup/page.js
 "use client";
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useUser, SignInButton } from "@clerk/nextjs";
-import {
-  jobLocations,
-  jobTypes,
-  skills as skillConstants,
-} from "@/utils/constants";
-import { supabase } from "@/utils/supabase/supabaseClient";
+import { jobLocations, jobTypes } from "@/utils/constants";
 import OutlinedInput from "@mui/material/OutlinedInput";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 import FormControl from "@mui/material/FormControl";
 import ListItemText from "@mui/material/ListItemText";
-import Select, { SelectChangeEvent } from "@mui/material/Select";
+import Select from "@mui/material/Select";
 import Checkbox from "@mui/material/Checkbox";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -31,12 +27,13 @@ import {
   SelectContent,
   SelectGroup,
   SelectItem,
-  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import StateCitySelect from "@/components/form/stateCityDropdown";
+import { supabase } from "@/utils/supabase/supabaseClient";
+import Link from "next/link";
 
 const ITEM_HEIGHT = 48;
 const ITEM_PADDING_TOP = 8;
@@ -51,40 +48,18 @@ const MenuProps = {
 
 export default function JobSeekerSignupPage() {
   const { user, isSignedIn, isLoaded } = useUser();
-  const [submitting, setSubmitting] = useState(false);
   const router = useRouter();
+  const [submitting, setSubmitting] = useState(false);
+  const [isExisting, setIsExisting] = useState(false);
 
-  // fetch list of available desired roles from backend
+  // ─────────────────── STEP STATE (starts at 1) ───────────────────
+  const [step, setStep] = useState(1);
+
+  // ─────────────────── LOOKUPS ───────────────────
   const [availableRoles, setAvailableRoles] = useState([]);
   const [availableSkills, setAvailableSkills] = useState([]);
-  useEffect(() => {
-    async function fetchSkills() {
-      try {
-        const res = await fetch("/api/skills");
-        if (!res.ok) throw new Error("Failed to fetch skills");
-        const data = await res.json();
-        setAvailableSkills(data);
-      } catch (err) {
-        console.error("Error fetching skills:", error);
-      }
-    }
-    fetchSkills();
-  }, []);
-  useEffect(() => {
-    async function fetchRoles() {
-      try {
-        const res = await fetch("/api/desired-job-roles");
-        if (!res.ok) throw new Error("Failed to fetch roles");
-        const data = await res.json();
-        setAvailableRoles(data);
-      } catch (error) {
-        console.error("Error fetching desired roles:", error);
-      }
-    }
-    fetchRoles();
-  }, []);
 
-
+  // ─────────────────── FORM STATE ───────────────────
   const [form, setForm] = useState({
     fullName: "",
     clerkId: "",
@@ -94,56 +69,132 @@ export default function JobSeekerSignupPage() {
     city: "",
     state: "",
     zip: "",
-    jobRoles: [],
-    skills: [],
-    resume: null,
-    expectedSalary: 1000,
-    experience: 0,
-    availability: "Full-Time", // single enum‐string
-    startDate: "",
-    jobLocation: "Onsite", // single enum‐string
+    jobRoles: [],          // Array<string>
+    skills: [],            // Array<string>
+    resume: null,          // File object
+    resumeUrl: "",         // existing URL (if editing)
+    publicResumeUrl: "",   // used to view existing PDF
+    expectedSalary: "",
+    experience: "",
+    availability: "",      // single enum‐string
+    startDate: null,       // Date object
+    jobLocation: "",       // single enum‐string
     aboutMe: "",
     willingToRelocate: false,
     profilePictureUrl: "",
   });
- 
 
+  // ─────────────────── PREFILL USER BASIC INFO ───────────────────
   useEffect(() => {
     if (isLoaded && user) {
-      setForm((f) => ({
-        ...f,
+      setForm((prev) => ({
+        ...prev,
         clerkId: user.id,
         fullName: user.fullName ?? "",
         email: user.emailAddresses[0]?.emailAddress ?? "",
         phone: user.phoneNumbers[0]?.phoneNumber ?? "",
         profilePictureUrl: user.imageUrl || "",
       }));
-
     }
   }, [isLoaded, user]);
 
-  const [step, setStep] = useState(1);
+  // ─────────────────── FETCH LOOKUPS & EXISTING PROFILE ───────────────────
+  useEffect(() => {
+    if (!isLoaded || !user) return;
 
+    async function fetchRoles() {
+      try {
+        const res = await fetch("/api/desired-job-roles");
+        if (!res.ok) throw new Error("Failed to fetch desired roles");
+        const data = await res.json();
+        setAvailableRoles(data);
+      } catch (err) {
+        console.error("Error fetching desired roles:", err);
+      }
+    }
+
+    async function fetchSkills() {
+      try {
+        const res = await fetch("/api/skills");
+        if (!res.ok) throw new Error("Failed to fetch skills");
+        const data = await res.json();
+        setAvailableSkills(data);
+      } catch (err) {
+        console.error("Error fetching skills:", err);
+      }
+    }
+
+    async function fetchExistingProfile() {
+      try {
+        const res = await fetch(`/api/get-seeker-profile?userId=${user.id}`);
+        if (res.status === 404) {
+          setIsExisting(false);
+          return;
+        }
+        if (!res.ok) throw new Error("Failed to fetch existing profile");
+        const data = await res.json();
+        if (data.isExisting) {
+          setIsExisting(true);
+          setForm((prev) => ({
+            ...prev,
+            fullName: data.fullName || prev.fullName,
+            email: data.email || prev.email,
+            phone: data.phone || prev.phone,
+            profilePictureUrl: data.profilePictureUrl || prev.profilePictureUrl,
+            address: data.address || "",
+            city: data.locationCity || "",
+            state: data.locationState || "",
+            zip: data.zipCode || "",
+            aboutMe: data.aboutMe || "",
+            resumeUrl: data.resumeFileUrl || "",
+            publicResumeUrl: data.resumeFileUrl || "",
+            willingToRelocate: data.willingToRelocate,
+            expectedSalary: data.expectedSalaryMin?.toString() || "",
+            experience: data.totalYearsOfExperience?.toString() || "",
+            startDate: data.availabilityStartDate
+              ? new Date(data.availabilityStartDate)
+              : null,
+            jobRoles: data.jobRoles || [],
+            skills: data.skills || [],
+            availability:
+              (data.desiredJobTypes && data.desiredJobTypes[0]) || "",
+            jobLocation:
+              (data.preferredLocationTypes && data.preferredLocationTypes[0]) ||
+              "",
+          }));
+        } else {
+          setIsExisting(false);
+        }
+      } catch (err) {
+        console.error("Error fetching existing profile:", err);
+      }
+    }
+
+    fetchRoles();
+    fetchSkills();
+    fetchExistingProfile();
+  }, [isLoaded, user]);
+
+  // ─────────────────── HANDLERS ───────────────────
   const handleChangeSimple = (e) => {
     const { name, value, files, type, checked } = e.target;
 
     if (type === "file" && name === "resume" && files) {
-      setForm({ ...form, resume: files[0] });
+      setForm((prev) => ({
+        ...prev,
+        resume: files[0], // newly picked File
+      }));
       return;
     }
-
     if (type === "checkbox" && name === "willingToRelocate") {
-      setForm({ ...form, willingToRelocate: checked });
+      setForm((prev) => ({ ...prev, willingToRelocate: checked }));
       return;
     }
-
-    setForm({ ...form, [name]: value });
+    setForm((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleJobRolesChange = (event) => {
-    const {
-      target: { value },
-    } = event;
+    const { value } = event.target;
     setForm((prev) => ({
       ...prev,
       jobRoles: typeof value === "string" ? value.split(",") : value,
@@ -151,9 +202,7 @@ export default function JobSeekerSignupPage() {
   };
 
   const handleSkillsChange = (event) => {
-    const {
-      target: { value },
-    } = event;
+    const { value } = event.target;
     setForm((prev) => ({
       ...prev,
       skills: typeof value === "string" ? value.split(",") : value,
@@ -164,67 +213,90 @@ export default function JobSeekerSignupPage() {
     e.preventDefault();
     setSubmitting(true);
 
-    // 1. Upload resume file (if provided)
-    let resumeUrl = "";
-    if (form.resume) {
-      const file = form.resume;
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${user?.id}_${Date.now()}.${fileExt}`;
-      const { data, error } = await supabase.storage
-        .from("resumes")
-        .upload(fileName, file, {
-          cacheControl: "3600",
-          upsert: false,
-        });
 
-      if (error) {
-        console.error("Resume upload error:", error);
-        alert("Failed to upload resume.");
+    let finalResumeUrl = form.resumeUrl;
+     if (form.resumeUrl && form.resume) {
+      try {
+        const parts = form.resumeUrl.split("/");
+        const oldFileName = parts[parts.length - 1]; 
+        const { error: removeError } = await supabase.storage
+          .from("resumes")
+          .remove([oldFileName]);
+        if (removeError) {
+          console.error("Failed to delete old resume:", removeError);
+        }
+      } catch (err) {
+        console.error("Error deleting old resume:", err);
+      }
+    }
+    if (form.resume) {
+      try {
+        const file = form.resume;
+        const fileExt = file.name.split(".").pop();
+        const fileName = `${user.id}_${Date.now()}.${fileExt}`;
+
+        const { data: uploadData, error: uploadError } =
+          await supabase.storage
+            .from("resumes")
+            .upload(fileName, file, {
+              cacheControl: "3600",
+              upsert: true,
+            });
+        if (uploadError) throw uploadError;
+
+        const { data: urlData } = supabase.storage
+          .from("resumes")
+          .getPublicUrl(uploadData.path);
+
+        finalResumeUrl = urlData.publicUrl; 
+      } catch (err) {
+        console.error("Resume upload error:", err);
+        alert("Failed to upload resume. Please try again.");
         setSubmitting(false);
         return;
       }
-
-      const { data: urlData } = supabase.storage
-        .from("resumes")
-        .getPublicUrl(data.path);
-      resumeUrl = urlData.publicUrl;
     }
 
-    
+    // 2. Build payload (align field names with route.js)
     const payload = {
       clerkId: form.clerkId,
-      resumeUrl,
+      resumeUrl: finalResumeUrl,
       fullName: form.fullName,
       email: form.email,
       phone: form.phone,
+      profilePictureUrl: form.profilePictureUrl,
       address: form.address,
       city: form.city,
       state: form.state,
       zip: form.zip,
-      jobRoles: form.jobRoles,
-      skills: form.skills.map((skillId) => ({ skillId })),
-      expectedSalary: form.expectedSalary,
-      experience: form.experience,
-      availability: [form.availability],
-      startDate: form.startDate,
-      jobLocation: [form.jobLocation],
       aboutMe: form.aboutMe,
       willingToRelocate: form.willingToRelocate,
-      profilePictureUrl: form.profilePictureUrl,
+      expectedSalary: parseInt(form.expectedSalary) || 0,
+      experience: parseInt(form.experience) || 0,
+      startDate: form.startDate
+        ? form.startDate.toISOString().split("T")[0]
+        : null,
+      jobRoles: form.jobRoles,           
+      skills: form.skills,       
+      availability: form.availability
+        ? [form.availability]
+        : [],                     
+      jobLocation: form.jobLocation
+        ? [form.jobLocation]
+        : [],                             
     };
 
     try {
+      const method = isExisting ? "PUT" : "POST";
       const res = await fetch("/api/add-jobSeeker", {
-        method: "POST",
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-
       if (!res.ok) {
         const { error } = await res.json();
-        throw new Error(error || "Failed to add user");
+        throw new Error(error || "Failed to save profile");
       }
-
       router.push("/job-seeker/dashboard");
     } catch (err) {
       console.error("Submission error:", err);
@@ -233,6 +305,7 @@ export default function JobSeekerSignupPage() {
     }
   };
 
+  // If not signed in, prompt to sign in
   if (!user || !isSignedIn || !isLoaded) {
     return (
       <div className="flex items-center justify-center h-screen bg-gradient-to-br from-gray-200 to-gray-400">
@@ -249,7 +322,7 @@ export default function JobSeekerSignupPage() {
     <div className="flex items-center justify-center py-12 bg-gradient-to-tr from-white to-gray-100 min-h-screen text-black">
       <div className="max-w-3xl w-full bg-white p-10 rounded-3xl shadow-2xl border border-gray-200">
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Step Indicators */}
+          {/* ───────────────────── STEP INDICATORS ───────────────────── */}
           <div className="flex justify-center space-x-4 mb-4">
             {[1, 2, 3].map((s) => (
               <div
@@ -267,7 +340,7 @@ export default function JobSeekerSignupPage() {
             ))}
           </div>
 
-          {/* ───────────── STEP 1 ───────────── */}
+          {/* ───────────── STEP 1: PERSONAL INFO ───────────── */}
           {step === 1 && (
             <>
               <h1 className="font-bold text-blue-700 text-3xl text-center mb-8">
@@ -308,7 +381,6 @@ export default function JobSeekerSignupPage() {
                     />
                   </div>
                 )}
-                {/* Address / City / State / ZIP */}
                 <div className="md:col-span-2 space-y-6">
                   <div>
                     <label className="block text-sm font-semibold text-gray-600">
@@ -326,14 +398,14 @@ export default function JobSeekerSignupPage() {
                     stateValue={form.state}
                     cityValue={form.city}
                     zipValue={form.zip}
-                    onStateChange={(newState) =>
-                      setForm((f) => ({ ...f, state: newState }))
+                    onStateChange={(val) =>
+                      setForm((prev) => ({ ...prev, state: val }))
                     }
-                    onCityChange={(newCity) =>
-                      setForm((f) => ({ ...f, city: newCity }))
+                    onCityChange={(val) =>
+                      setForm((prev) => ({ ...prev, city: val }))
                     }
-                    onZipChange={(newZip) =>
-                      setForm((f) => ({ ...f, zip: newZip }))
+                    onZipChange={(val) =>
+                      setForm((prev) => ({ ...prev, zip: val }))
                     }
                   />
                 </div>
@@ -341,14 +413,14 @@ export default function JobSeekerSignupPage() {
             </>
           )}
 
-          {/* ───────────── STEP 2 ───────────── */}
+          {/* ───────────── STEP 2: JOB ROLES & SKILLS ───────────── */}
           {step === 2 && (
             <div className="flex flex-col items-center">
               <h1 className="font-bold text-blue-700 text-2xl mb-4 text-center">
                 Select Roles to Apply & Skills
               </h1>
 
-              {/* Desired Job Roles (multi‐select) */}
+              {/* Desired Job Roles */}
               <FormControl sx={{ m: 1, width: 300 }}>
                 <InputLabel id="jobrole-label">Job Roles</InputLabel>
                 <Select
@@ -371,7 +443,9 @@ export default function JobSeekerSignupPage() {
                       value={pos.desiredJobRoleId}
                     >
                       <Checkbox
-                        checked={form.jobRoles.includes(pos.desiredJobRoleId)}
+                        checked={form.jobRoles.includes(
+                          pos.desiredJobRoleId
+                        )}
                       />
                       <ListItemText primary={pos.roleName} />
                     </MenuItem>
@@ -379,32 +453,33 @@ export default function JobSeekerSignupPage() {
                 </Select>
               </FormControl>
 
-              {/* Skills (multi‐select) */}
+              {/* Skills */}
               <FormControl sx={{ m: 1, width: 300 }}>
-        <InputLabel id="skill-label">Skills</InputLabel>
-        <Select
-          labelId="skill-label"
-          multiple
-          value={form.skills}
-          onChange={handleSkillsChange}
-          input={<OutlinedInput label="Skills" />}
-          renderValue={(selectedIds) =>
-            // Show the skillName(s) for each selected skillId
-            availableSkills
-              .filter((s) => (selectedIds).includes(s.skillId))
-              .map((s) => s.skillName)
-              .join(", ")
-          }
-          MenuProps={MenuProps}
-        >
-          {availableSkills.map((skill) => (
-            <MenuItem key={skill.skillId} value={skill.skillId}>
-              <Checkbox checked={form.skills.includes(skill.skillId)} />
-              <ListItemText primary={skill.skillName} />
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
+                <InputLabel id="skill-label">Skills</InputLabel>
+                <Select
+                  labelId="skill-label"
+                  multiple
+                  value={form.skills}
+                  onChange={handleSkillsChange}
+                  input={<OutlinedInput label="Skills" />}
+                  renderValue={(selectedIds) =>
+                    availableSkills
+                      .filter((s) => selectedIds.includes(s.skillId))
+                      .map((s) => s.skillName)
+                      .join(", ")
+                  }
+                  MenuProps={MenuProps}
+                >
+                  {availableSkills.map((skill) => (
+                    <MenuItem key={skill.skillId} value={skill.skillId}>
+                      <Checkbox
+                        checked={form.skills.includes(skill.skillId)}
+                      />
+                      <ListItemText primary={skill.skillName} />
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
 
               {/* About Me */}
               <div className="w-full">
@@ -412,7 +487,7 @@ export default function JobSeekerSignupPage() {
                   About Me
                 </label>
                 <Textarea
-                  placeholder="Tell more about yourself (skills, past work, interests, relevant links, etc.)"
+                  placeholder="Tell us about yourself…"
                   className="w-full p-2 border border-gray-300 rounded-md"
                   value={form.aboutMe}
                   name="aboutMe"
@@ -422,7 +497,7 @@ export default function JobSeekerSignupPage() {
             </div>
           )}
 
-          {/* ───────────── STEP 3 ───────────── */}
+          {/* ───────────── STEP 3: EXPERIENCE & AVAILABILITY ───────────── */}
           {step === 3 && (
             <div>
               <h1 className="font-bold text-blue-700 text-2xl mb-5 text-center">
@@ -457,7 +532,7 @@ export default function JobSeekerSignupPage() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
-                {/* job availability (single‐select) */}
+                {/* Availability (job types) */}
                 <div className="flex flex-col">
                   <label className="block text-sm font-semibold text-gray-600 py-1">
                     Availability
@@ -469,7 +544,7 @@ export default function JobSeekerSignupPage() {
                     }
                   >
                     <SelectTrigger className="w-auto">
-                      <SelectValue placeholder="Select Your Availability" />
+                      <SelectValue placeholder="Select Availability" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectGroup>
@@ -483,10 +558,10 @@ export default function JobSeekerSignupPage() {
                   </ShadSelect>
                 </div>
 
-                {/* job location (single‐select) */}
+                {/* Job Location (Onsite/Remote/Hybrid) */}
                 <div className="flex flex-col">
                   <label className="block text-sm font-semibold text-gray-600 py-1">
-                    Job Location
+                    Preferred Job Location
                   </label>
                   <ShadSelect
                     value={form.jobLocation}
@@ -570,10 +645,27 @@ export default function JobSeekerSignupPage() {
                 </div>
               </div>
 
+              {/* Resume Upload */}
               <div>
                 <label className="block text-sm font-semibold text-gray-600 mt-4">
-                  Resume (PDF)
+                  {form.resumeUrl
+                    ? "Replace Your Resume (PDF)"
+                    : "Upload Resume (PDF)"}
                 </label>
+
+                {form.resumeUrl && (
+                  <div className="mb-2">
+                    <a
+                      href={form.publicResumeUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-indigo-600 hover:underline"
+                    >
+                      View Current Resume
+                    </a>
+                  </div>
+                )}
+
                 <input
                   type="file"
                   name="resume"
@@ -585,9 +677,8 @@ export default function JobSeekerSignupPage() {
             </div>
           )}
 
-          {/* Navigation Buttons */}
+          {/* ───────────────────── NAVIGATION BUTTONS ───────────────────── */}
           <div className="flex justify-between pt-4">
-            {step === 1 && <Button>Skip form</Button>}
             {step > 1 && (
               <Button
                 type="button"
@@ -606,8 +697,8 @@ export default function JobSeekerSignupPage() {
                 Next
               </Button>
             )}
-            {step === 3 &&
-              (submitting ? (
+            {step === 3 && (
+              submitting ? (
                 <Button
                   disabled
                   className="px-4 py-2 bg-gray-400 text-white rounded-lg"
@@ -621,7 +712,8 @@ export default function JobSeekerSignupPage() {
                 >
                   Submit
                 </Button>
-              ))}
+              )
+            )}
           </div>
         </form>
       </div>

@@ -1,6 +1,36 @@
 
 
+export function formatDate(input){
+  const date = typeof input === "string" ? new Date(input) : input;
 
+  const day = date.getDate();
+  const month = date.toLocaleString("en-GB", { month: "long" });
+  const year = date.getFullYear();
+
+  const getOrdinalSuffix = (n)=> {
+    if (n > 3 && n < 21) return `${n}th`;
+    switch (n % 10) {
+      case 1: return `${n}st`;
+      case 2: return `${n}nd`;
+      case 3: return `${n}rd`;
+      default: return `${n}th`;
+    }
+  };
+
+  return `${getOrdinalSuffix(day)} ${month}, ${year}`;
+}
+
+
+export function formatTime(time24, locale = "en-US") {
+  const [hourStr, minuteStr] = time24.split(":");
+  const date = new Date();
+  date.setHours(parseInt(hourStr, 10), parseInt(minuteStr, 10), 0, 0);
+  return date.toLocaleTimeString(locale, {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
 export const jobCategories = [
   "Engineering",
   "Marketing",

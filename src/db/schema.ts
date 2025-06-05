@@ -145,7 +145,7 @@ export const jobPostings = pgTable(
     salaryMin: integer('salary_min'),
     salaryMax: integer('salary_max'),
     howToApply: text('how_to_apply'),
-    status: jobPostingStatusEnum('status').default('Draft').notNull(),
+    status: jobPostingStatusEnum('status').default('Open').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   },

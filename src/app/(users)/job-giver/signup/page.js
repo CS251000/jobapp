@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -28,11 +28,14 @@ export default function CompanyProfilePage() {
     aboutCompany: "",
   });
 
+  const [companyId, setCompanyId] = useState("");
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isExisting, setIsExisting] = useState(false);
   const [isFetching, setFetching] = useState(false);
-  const[companyId,setCompanyId]= useState("");
+
   async function fetchCompany() {
+    if (!user) return;
     setFetching(true);
     try {
       const res = await fetch(`/api/get-company?uploaderId=${user.id}`);
@@ -41,30 +44,36 @@ export default function CompanyProfilePage() {
         throw new Error(error || "Failed to fetch company");
       }
       const data = await res.json();
-      if (data.isExisting) setIsExisting(true);
-      if (!isExisting) return;
-      setForm((f) => ({
-        ...f,
-        companyId: data.companyId,
-        companyName: data.companyName??"",
-        contactPerson: data.contactPerson??"",
-        email: data.email??"",
-        phone: data.phone??"",
-        website: data.website??"",
-        address: data.address??"",
-        city: data.city??"",
-        state: data.state??"",
-        zip: data.zipCode??"",
-        companyLogoUrl: data.companyLogoUrl??"",
-        aboutCompany: data.aboutCompany??"",
-      }));
+
+      if (data.isExisting) {
+        setIsExisting(true);
+       
+        setCompanyId(data.companyId);
+
+        setForm((f) => ({
+          ...f,
+          companyId: data.companyId,
+          companyName: data.companyName || "",
+          contactPerson: data.contactPerson || "",
+          email: data.email || "",
+          phone: data.phone || "",
+          website: data.website || "",
+          address: data.address || "",
+          city: data.city || "",
+          state: data.state || "",
+          zip: data.zipCode || "",
+          companyLogoUrl: data.companyLogoUrl || "",
+          aboutCompany: data.aboutCompany || "",
+        }));
+      }
     } catch (err) {
-      console.log("Failed to fetch company", err);
+      console.error("Failed to fetch company", err);
     } finally {
       setFetching(false);
     }
   }
 
+  // On load (once user is known), prefill user fields and then fetch existing company
   useEffect(() => {
     if (isLoaded && user) {
       setForm((prev) => ({
@@ -75,7 +84,7 @@ export default function CompanyProfilePage() {
       }));
       fetchCompany();
     }
-  }, [isLoaded, user, isExisting]);
+  }, [isLoaded, user]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -87,7 +96,6 @@ export default function CompanyProfilePage() {
     if (!user) return;
 
     setIsSubmitting(true);
-
     try {
       const payload = {
         clerkId: user.id,
@@ -105,13 +113,14 @@ export default function CompanyProfilePage() {
       };
 
       const res = await fetch("/api/add-company-profile", {
-        method: "POST",
+        method: isExisting ? "PUT" : "POST", // if you want to update vs. create
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
       if (res.ok) {
         const data = await res.json();
+        // ← Store the returned companyId in state
         setCompanyId(data.companyId);
         router.push(`/job-giver/dashboard?companyId=${data.companyId}`);
       } else {
@@ -127,6 +136,7 @@ export default function CompanyProfilePage() {
     }
   };
 
+  // If the user isn't signed in yet, show the sign‐in prompt
   if (!isLoaded || !isSignedIn) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-100">
@@ -139,26 +149,27 @@ export default function CompanyProfilePage() {
     );
   }
 
-  if(isFetching){
-    return (
-      <Loading/>
-    )
+  // While we are fetching the existing data, show a loader
+  if (isFetching) {
+    return <Loading />;
   }
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-tr from-white to-gray-100">
       <div className="w-full max-w-3xl bg-white p-10 rounded-3xl shadow-lg border">
         <div className="flex flex-row justify-between mb-4">
-        <h1 className="text-3xl font-bold text-center text-blue-700 mb-6">
-          Create Company Profile
-        </h1>
-        <Link href={`/job-giver/dashboard?companyId=${companyId}`}>
-        <Button>
-          Go to dashboard
-        </Button>
-        </Link>
+          <h1 className="text-3xl font-bold text-center text-blue-700 mb-6">
+            {isExisting ? "Edit Company Profile" : "Create Company Profile"}
+          </h1>
+
+          {/* ← Use the state variable companyId, not data.companyId */}
+          {companyId && (
+            <Link href={`/job-giver/dashboard?companyId=${companyId}`}>
+              <Button>Go to dashboard</Button>
+            </Link>
+          )}
         </div>
-        
+
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <TextField
@@ -258,7 +269,6 @@ export default function CompanyProfilePage() {
           </div>
 
           <div className="flex justify-end">
-            
             <Button
               type="submit"
               disabled={isSubmitting}

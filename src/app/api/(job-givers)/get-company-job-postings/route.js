@@ -20,9 +20,6 @@ export async function GET(request) {
       );
     }
 
-    //
-    // 1) Fetch all postings for this companyId
-    //
     const postings = await db
       .select({
         jobPostingId:            jobPostings.jobPostingId,
@@ -78,7 +75,7 @@ export async function GET(request) {
       if (!skillsMap[pid]) {
         skillsMap[pid] = [];
       }
-      // if skillName is null (shouldn’t happen if the FK is valid), skip
+
       if (row.skillName !== null) {
         skillsMap[pid].push(row.skillName);
       }

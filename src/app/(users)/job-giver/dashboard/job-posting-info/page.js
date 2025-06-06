@@ -171,8 +171,18 @@ export default function JobPostingInfo() {
         </CardContent>
 
         <CardFooter className="bg-gray-50 text-xs text-gray-600 px-6 py-3">
-          
-            <Button onClick={() => router.back()}>Back</Button>
+          <div className="flex flex-row justify-between w-full">
+              <Button onClick={() => router.back()}>Back</Button>
+              <Button className={'bg-blue-600 text-white hover:bg-blue-700'}
+              onClick={()=>router.push(`job-posting-info/job-applications?jobPostingId=${jobPosting.jobPostingId}&jobPostingName=${jobPosting.jobTitle}`)}
+              >View Job Applications</Button>
+
+              <Button className={'bg-green-600 text-white hover:bg-green-700'}
+              onClick={()=>router.push(`job-posting-info/suggested-job-candidates?jobPostingId=${jobPosting.jobPostingId}`)}
+              >
+                View Suggested Candidates</Button>
+          </div>
+            
         </CardFooter>
       </Card>
     </div>

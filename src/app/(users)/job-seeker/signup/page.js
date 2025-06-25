@@ -679,6 +679,14 @@ export default function JobSeekerSignupPage() {
 
           {/* ───────────────────── NAVIGATION BUTTONS ───────────────────── */}
           <div className="flex justify-between pt-4">
+            {step==1 && (
+              <Button
+                type="button"
+                onClick={() => router.push("/job-seeker/dashboard")}
+              >
+                Go to Dashboard
+              </Button>
+            )}
             {step > 1 && (
               <Button
                 type="button"

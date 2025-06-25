@@ -1,100 +1,99 @@
-import React from 'react'
+// src/components/JobApplications.tsx
+"use client";
+import React, { useState } from "react";
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
-export default function JobApplications({jobApplications}) {
+
+
+export default function JobApplications({ jobApplications,onDelete}) {
+  const[isMember,setIsMember]= useState(true);
   return (
-    <div>
-      <ul className="space-y-4">
-          {jobApplications.map((app) => (
-            <li
-              key={app.jobApplicationId}
-              className="border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow"
-            >
-              <div className="flex justify-between items-center mb-2">
-                <h2 className="text-lg font-medium text-gray-800">
-                  Applicant ID:{" "}
-                  <span className="text-indigo-600">
-                    {app.jobApplicationId.slice(0, 8)}…
-                  </span>
-                </h2>
-                <span
-                  className={
-                    "px-2 py-1 text-sm font-semibold rounded-full " +
-                    (app.status === "Submitted"
-                      ? "bg-yellow-100 text-yellow-800"
-                      : app.status === "Under Review"
-                      ? "bg-blue-100 text-blue-800"
-                      : app.status === "Interviewing"
-                      ? "bg-purple-100 text-purple-800"
-                      : app.status === "Offered"
-                      ? "bg-green-100 text-green-800"
-                      : app.status === "Rejected"
-                      ? "bg-red-100 text-red-800"
-                      : "bg-gray-100 text-gray-700")
-                  }
-                >
-                  {app.status}
-                </span>
-              </div>
-
-              <p className="text-sm text-gray-600 mb-1">
-                <strong>Applied on:</strong>{" "}
-                {new Date(app.applicationDate).toLocaleDateString("en-IN", {
-                  day: "numeric",
-                  month: "short",
-                  year: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
+    <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+      {jobApplications.map((app) => (
+        <Card
+          key={app.jobApplicationId}
+          className="bg-[#F7F7FF] text-[#545E75] hover:shadow-lg transition-shadow duration-200"
+        >
+          <CardHeader>
+            <CardTitle className="text-xl font-bold text-black">
+              {app.name}
+            </CardTitle>
+            <p className="text-sm text-gray-500">
+              Applied on{" "}
+              {new Date(app.applicationDate).toLocaleDateString("en-IN", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              })}
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <div className="flex flex-wrap gap-1">
+              {app.skills.map((skill) => (
+                <Badge key={skill} className={'bg-[#F2D0A4] text-[#545E75] text-sm'}>
+                  {skill}
+                </Badge>
+              ))}
+            </div>
+            {app.willingToRelocate !== undefined && (
+              <p>
+                <strong>Relocate:</strong>{" "}
+                {app.willingToRelocate ? "Yes" : "No"}
               </p>
-
-              {app.coverLetterText && (
-                <div className="mb-2">
-                  <p className="text-sm font-semibold text-gray-700">
-                    Cover Letter:
-                  </p>
-                  <p className="text-gray-600 whitespace-pre-wrap">
-                    {app.coverLetterText}
-                  </p>
-                </div>
-              )}
-
-              {app.seekerResumeUrlAtApplication && (
-                <div className="mb-2">
-                  <a
-                    href={app.seekerResumeUrlAtApplication}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-indigo-500 hover:underline text-sm"
-                  >
-                    View Resume
-                  </a>
-                </div>
-              )}
-
-              {app.notesBySeeker && (
-                <div className="mb-2">
-                  <p className="text-sm font-semibold text-gray-700">
-                    Seeker’s Notes:
-                  </p>
-                  <p className="text-gray-600 whitespace-pre-wrap">
-                    {app.notesBySeeker}
-                  </p>
-                </div>
-              )}
-
-              {app.notesByGiver && (
-                <div>
-                  <p className="text-sm font-semibold text-gray-700">
-                    Your Notes:
-                  </p>
-                  <p className="text-gray-600 whitespace-pre-wrap">
-                    {app.notesByGiver}
-                  </p>
-                </div>
-              )}
-            </li>
-          ))}
-        </ul>
+            )}
+            {app.desiredRoles.length > 0 && (
+              <p>
+                <strong>Desired Roles:</strong>{" "}
+                {app.desiredRoles.join(", ")}
+              </p>
+            )}
+            {app.desiredJobTypes.length > 0 && (
+              <p>
+                <strong>Job Types:</strong>{" "}
+                {app.desiredJobTypes.join(", ")}
+              </p>
+            )}
+            {app.preferredLocationTypes.length > 0 && (
+              <p>
+                <strong>Locations:</strong>{" "}
+                {app.preferredLocationTypes.join(", ")}
+              </p>
+            )}
+            {app.coverLetter && (
+              <details>
+                <summary className="cursor-pointer text-sm text-blue-600">
+                  View Cover Letter
+                </summary>
+                <p className="mt-2 text-sm text-gray-700">
+                  {app.coverLetter}
+                </p>
+              </details>
+            )}
+            {app.resumeUrl && (
+              <p>
+                <a
+                  href={app.resumeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-indigo-600 hover:underline"
+                >
+                  Download Resume
+                </a>
+              </p>
+            )}
+          </CardContent>
+          <CardFooter>
+            <div className="flex flex-row justify-between gap-6">
+              <Button className='bg-[#3F826D] text-[#F7F7FF]'>View Complete Profile</Button>
+              <Button className='bg-[#C03221] text-[#F7F7FF]'
+              onClick={()=>onDelete(app.jobApplicationId)}
+              >Reject Application</Button>
+            </div>
+          </CardFooter>
+        </Card>
+      ))}
     </div>
-  )
+  );
 }

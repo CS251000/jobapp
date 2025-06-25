@@ -36,6 +36,7 @@ export default function JobPostApplications() {
           setJobApplications([]);
         } else {
           const data = await res.json();
+          console.log("d",data);
           setJobApplications(data || []);
         }
       } catch (err) {
@@ -51,12 +52,15 @@ export default function JobPostApplications() {
   }, [jobPostingId]);
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8">
-      <Button onClick={()=>router.back()}>View Job Posting</Button>
+    <div className="p-4">
+      <div className="flex flex-row justify-start gap-x-40">
+        <Button onClick={()=>router.back()}>View Job Posting</Button>
       <h1 className="text-2xl font-semibold mb-6">
         Job Applications for Posting:{" "}
         <span className="text-indigo-600">{jobPostingName}</span>
       </h1>
+      </div>
+      
 
       {isLoading && <p className="text-gray-500">Loading applications…</p>}
 

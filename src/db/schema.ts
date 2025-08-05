@@ -43,6 +43,7 @@ export const companyProfiles = pgTable(
       .unique(),
     companyName: varchar('company_name', { length: 255 }).notNull(),
     contactPerson: varchar('contact_person', { length: 255 }),
+    sizeOfOrganization: varchar('size_of_organization', { length: 100 }),
     email:varchar('email'),
     phone: varchar('phone', { length: 50 }),
     website: varchar('website', { length: 255 }),
@@ -98,6 +99,29 @@ export const skills = pgTable('skills', {
   category: varchar('skill_category', { length: 100 }),
 })
 
+export const categories=pgTable('categories', {
+  categoryId: uuid('category_id').defaultRandom().primaryKey(),
+  categoryName: varchar('category_name', { length: 100 }).notNull().unique(),
+})
+
+export const jobSeekerCategories = pgTable('job_seeker_categories',
+  {
+    jobSeekerCategoryId: uuid('job_seeker_category_id').defaultRandom().primaryKey(),
+    jobSeekerId: uuid('job_seeker_id')
+      .notNull()
+      .references(() => jobSeekerProfiles.jobSeekerProfileId, { onDelete: 'cascade' }),
+    categoryId: uuid('category_id')
+      .notNull()
+      .references(() => categories.categoryId, { onDelete: 'cascade' }),
+    assignedAt: timestamp('assigned_at')
+      .defaultNow()
+      .notNull(),
+  },
+  (t) =>[
+    index('idx_jobseeker_categories_category').on(t.categoryId),
+  ]
+);
+
 export const jobSeekerSkills = pgTable(
   'job_seeker_skills',
   {
@@ -129,7 +153,7 @@ export const jobPostings = pgTable(
       .notNull()
       .references(() => users.clerkUserId, { onDelete: 'cascade' }),
     jobTitle: varchar('job_title', { length: 255 }).notNull(),
-    jobCategory: varchar('job_category', { length: 100 }),
+    jobCategory: uuid('job_category_id').notNull().references(() => categories.categoryId, { onDelete: 'cascade' }),
     jobType: jobTypeEnum('job_type').notNull(),
     jobLocationType: jobLocationTypeEnum('job_location_type').notNull(),
     jobLocationAddress: text('job_location_address'),
@@ -137,6 +161,13 @@ export const jobPostings = pgTable(
     jobLocationState: varchar('job_location_state', { length: 100 }),
     zipCode:varchar('zip_code'),
     jobRole: text("job_role"),
+    vacancies: integer('vacancies').default(1),
+    minAge:integer('min_age'),
+    maxAge:integer('max_age'),
+    languages: jsonb('languages').$type<string[]>(),
+    jobTimingStartTime: varchar('job_timing_start_time', { length: 50 }),
+    jobTimingEndTime: varchar('job_timing_end_time', { length: 50 }),
+    jobTimingDays: jsonb('job_timing_days').$type<string[]>(),
     applicationDeadline: date('application_deadline').notNull(),
     jobDescription: text('job_description'),
     keyResponsibilities: text('key_responsibilities'),
@@ -157,6 +188,26 @@ export const jobPostings = pgTable(
     index('job_postings_job_location_type_idx').on(table.jobLocationType),
   ],
 )
+
+export const jobPostingCategories = pgTable(
+  'job_posting_categories',
+  {
+    jobPostingCategoryId: uuid('job_posting_category_id').defaultRandom().primaryKey(),
+    jobPostingId: uuid('job_posting_id')
+      .notNull()
+      .references(() => jobPostings.jobPostingId, { onDelete: 'cascade' }),
+    categoryId: uuid('category_id')
+      .notNull()
+      .references(() => categories.categoryId, { onDelete: 'cascade' }),
+    assignedAt: timestamp('assigned_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) =>[
+    index('job_posting_categories_category_idx').on(table.categoryId),
+    index('job_posting_categories_posting_idx').on(table.jobPostingId),
+  ]
+);
 
 export const jobPostingSkills = pgTable(
   'job_posting_skills',
@@ -210,10 +261,22 @@ export const jobApplications = pgTable(
 )
 
 export const desiredJobRoles = pgTable('desired_job_roles', {
-  desiredJobRoleId: uuid('desired_job_role_id').defaultRandom().primaryKey(),
-  roleName: varchar('role_name', { length: 255 }).notNull().unique(),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  desiredJobRoleId: uuid('desired_job_role_id')
+    .defaultRandom()
+    .primaryKey(),
+  categoryId: uuid('category_id')
+    .notNull()
+    .references(() => categories.categoryId, { onDelete: 'cascade' }),
+
+  roleName: varchar('role_name', { length: 255 })
+    .notNull()
+    .unique(),
+
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
 })
+
 
 export const jobSeekerDesiredJobRoles = pgTable(
   'job_seeker_desired_job_roles',
@@ -268,6 +331,7 @@ export const jobSeekerPreferredJobLocationTypes = pgTable(
   ]
 )
 
+//relations
 export const usersRelations = relations(users, ({ one, many }) => ({
   companyProfile: one(companyProfiles, {
     fields: [users.clerkUserId],

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { jobPostings, jobPostingSkills } from "@/db/schema";
+import { jobPostings, jobPostingSkills, jobPostingCategories } from "@/db/schema";
 
 export async function POST(req) {
   const body = await req.json();
@@ -16,6 +16,13 @@ export async function POST(req) {
     jobLocationState,
     zipCode,
     jobRole,
+    vacancies,
+    minAge,
+    maxAge,
+    languages,
+    jobTimingStartTime,
+    jobTimingEndTime,
+    jobTimingDays,
     applicationDeadline,
     jobDescription,
     keyResponsibilities,
@@ -27,10 +34,11 @@ export async function POST(req) {
     skills,
   } = body;
 
+  // Validate required fields
   if (
     !companyId ||
     !postedByClerkUserId ||
-    !jobTitle ||
+    !jobTitle?.trim() ||
     !jobType ||
     !jobLocationType ||
     !applicationDeadline
@@ -42,10 +50,11 @@ export async function POST(req) {
   }
 
   try {
-    let newJobPostingId = null;
+    let newJobId;
 
     await db.transaction(async (tx) => {
-      const [inserted] = await tx
+      // Insert job posting with all columns
+      const [created] = await tx
         .insert(jobPostings)
         .values({
           companyId,
@@ -58,39 +67,54 @@ export async function POST(req) {
           jobLocationCity: jobLocationCity || null,
           jobLocationState: jobLocationState || null,
           zipCode: zipCode || null,
-          jobRole: jobRole || null,
+          jobRole: Array.isArray(jobRole) ? jobRole : [],
+          vacancies: vacancies ?? 1,
+          minAge: minAge ?? null,
+          maxAge: maxAge ?? null,
+          languages: Array.isArray(languages) ? languages : [],
+          jobTimingStartTime: jobTimingStartTime || null,
+          jobTimingEndTime: jobTimingEndTime || null,
+          jobTimingDays: Array.isArray(jobTimingDays) ? jobTimingDays : [],
           applicationDeadline,
           jobDescription: jobDescription || null,
           keyResponsibilities: keyResponsibilities || null,
           requiredQualifications: requiredQualifications || null,
           experienceLevelRequired: experienceLevelRequired || null,
-          salaryMin: salaryMin !== undefined ? salaryMin : null,
-          salaryMax: salaryMax !== undefined ? salaryMax : null,
+          salaryMin: salaryMin ?? null,
+          salaryMax: salaryMax ?? null,
           howToApply: howToApply || null,
         })
         .returning({ jobPostingId: jobPostings.jobPostingId });
 
-      newJobPostingId = inserted.jobPostingId;
+      newJobId = created.jobPostingId;
 
-      // 2. Insert associated skills if provided
-      if (Array.isArray(skills) && skills.length > 0) {
-        const skillRows = skills.map((s) => ({
-          jobPostingId: newJobPostingId,
-          skillId: s.skillId,
-          skillType: s.skillType,
+      // Associate skills
+      if (Array.isArray(skills) && skills.length) {
+        const skillInserts = skills.map(({ skillId, skillType }) => ({
+          jobPostingId: newJobId,
+          skillId,
+          skillType,
         }));
-        await tx.insert(jobPostingSkills).values(skillRows);
+        await tx.insert(jobPostingSkills).values(skillInserts);
+      }
+
+      // Associate category
+      if (jobCategory) {
+        await tx.insert(jobPostingCategories).values({
+          jobPostingId: newJobId,
+          categoryId: jobCategory,
+        });
       }
     });
 
     return NextResponse.json(
-      { message: "Job posting created.", jobPostingId: newJobPostingId },
+      { message: "Job posting created", jobPostingId: newJobId },
       { status: 201 }
     );
-  } catch (error) {
-    console.error("Error creating job posting:", error);
+  } catch (err) {
+    console.error("Error creating job posting:", err);
     return NextResponse.json(
-      { error: "Internal server error while creating job posting." },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

@@ -6,6 +6,7 @@ import {
   companyProfiles,
   jobPostings,
   jobPostingSkills,
+  categories,
   skills,
 } from '@/db/schema';
 import { eq, inArray } from 'drizzle-orm';
@@ -19,6 +20,7 @@ export async function GET() {
         postedByClerkUserId:     jobPostings.postedByClerkUserId,
         jobTitle:                jobPostings.jobTitle,
         jobCategory:             jobPostings.jobCategory,
+        jobCategoryName:       categories.categoryName,
         jobType:                 jobPostings.jobType,
         jobLocationType:         jobPostings.jobLocationType,
         jobLocationAddress:      jobPostings.jobLocationAddress,
@@ -43,6 +45,9 @@ export async function GET() {
       .leftJoin(
         companyProfiles,
         eq(companyProfiles.companyId, jobPostings.companyId)
+      ).leftJoin(
+        categories,
+        eq(categories.categoryId, jobPostings.jobCategory)
       )
 
     if (rawPostings.length === 0) {

@@ -27,7 +27,7 @@ export default function GiverJobPostingCard({ jobPostings,onDelete}) {
           <CardContent className="space-y-2">
             {job.jobCategory && (
               <p className="text-sm text-[#003049]">
-                <strong>Category:</strong> {job.jobCategory}
+                <strong>Category:</strong> {job.jobCategoryName}
               </p>
             )}
 
@@ -55,7 +55,19 @@ export default function GiverJobPostingCard({ jobPostings,onDelete}) {
 
           </CardContent>
 
-          <CardFooter className="flex justify-end space-x-2">
+          <CardFooter className="flex space-x-2">
+            <Link
+            href={""}>
+            <Button size="sm" className={'bg-[#003049] text-[#FDF0D5]'}>
+              Applications
+            </Button>
+            </Link>
+            <Link
+            href={""}>
+            <Button size="sm" className={'bg-[#003049] text-[#FDF0D5]'}>
+               Suggestions
+            </Button>
+            </Link>
             <Link
             href={{
               pathname:'/job-giver/dashboard/job-posting-info',

@@ -1,0 +1,2 @@
+ALTER TABLE "job_postings" RENAME COLUMN "job_category" TO "job_category_id";--> statement-breakpoint
+ALTER TABLE "job_postings" ADD CONSTRAINT "job_postings_job_category_id_categories_category_id_fk" FOREIGN KEY ("job_category_id") REFERENCES "public"."categories"("category_id") ON DELETE set null ON UPDATE no action;

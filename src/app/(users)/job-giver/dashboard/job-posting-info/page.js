@@ -44,7 +44,7 @@ export default function JobPostingInfo() {
             <CardDescription className="mt-1 text-sm text-gray-600">
               Category:{" "}
               <span className="font-medium text-indigo-700">
-                {jobPosting.jobCategory}
+                {jobPosting.jobCategoryName}
               </span>
             </CardDescription>
           </div>

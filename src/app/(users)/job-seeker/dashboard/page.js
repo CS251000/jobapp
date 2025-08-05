@@ -1,12 +1,12 @@
 'use client';
 
-import GiverJobCard from '@/components/dashboard/giverJobCard';
+import SeekerJobCard from '@/components/dashboard/seekerJobCard';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import React, { useEffect, useState } from 'react';
 
 
-export default function JobGiverDashboard() {
+export default function JobSeekerDashboard() {
   const [jobPostings, setJobPostings] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -40,13 +40,13 @@ export default function JobGiverDashboard() {
     <div className="min-h-screen bg-gray-50 p-6">
       <div className='flex flex-row justify-between items-center mb-6'>
       <h1 className="text-4xl font-extrabold text-center mb-6">
-        Your Job Postings
+        Suggested Job Postings
       </h1>
       <Link href="/job-seeker/dashboard/applications">
       <Button>View Your Applications</Button>
       </Link>
       </div>
-      <GiverJobCard jobPostings={jobPostings} />
+      <SeekerJobCard jobPostings={jobPostings} />
     </div>
   );
 }

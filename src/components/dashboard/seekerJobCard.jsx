@@ -8,7 +8,7 @@ import Link from 'next/link'
 
 
 
-export default function GiverJobCard({ jobPostings}) {
+export default function SeekerJobCard({ jobPostings}) {
   return (
     <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 mx-4">
       {jobPostings.map((job) => (
@@ -16,8 +16,11 @@ export default function GiverJobCard({ jobPostings}) {
           key={job.jobPostingId}
           className={`flex flex-col justify-between w-auto bg-[#FDF0D5]`}
         >
-          <CardHeader className="space-y-2">
+          <CardHeader className="space-y-1">
             <CardTitle className="text-2xl">{job.jobTitle}</CardTitle>
+            <p className="text-sm text-[#003049]">
+              <strong>{job.companyName || 'Unknown Company'}</strong> 
+            </p>
             <div className="flex flex-wrap gap-1">
               <Badge variant="secondary" className={'bg-[#003049] text-[#FDF0D5] font-bold'}>{job.jobType}</Badge>
               <Badge variant="outline" className={'bg-[]#FDF0D5 border border-[#003049] font-bold'}>{job.jobLocationType}</Badge>

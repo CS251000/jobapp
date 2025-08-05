@@ -1,0 +1,1 @@
+ALTER TABLE "desired_job_roles" ALTER COLUMN "job_role_category" SET DATA TYPE uuid;

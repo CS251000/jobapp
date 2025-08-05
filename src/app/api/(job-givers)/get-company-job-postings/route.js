@@ -3,7 +3,8 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";                   // your Drizzle client (plain)
 import { 
   jobPostings, 
-  jobPostingSkills, 
+  jobPostingSkills,
+  categories, 
   skills 
 } from "@/db/schema";
 import { eq, inArray } from "drizzle-orm";
@@ -26,6 +27,7 @@ export async function GET(request) {
         postedByClerkUserId:     jobPostings.postedByClerkUserId,
         jobTitle:                jobPostings.jobTitle,
         jobCategory:             jobPostings.jobCategory,
+        jobCategoryName:       categories.categoryName,
         jobType:                 jobPostings.jobType,
         jobLocationType:         jobPostings.jobLocationType,
         jobLocationAddress:      jobPostings.jobLocationAddress,
@@ -46,6 +48,10 @@ export async function GET(request) {
         updatedAt:               jobPostings.updatedAt,
       })
       .from(jobPostings)
+      .leftJoin(
+        categories,
+        eq(categories.categoryId, jobPostings.jobCategory)
+      )
       .where(eq(jobPostings.companyId, companyId));
 
     // If no postings found, return an empty array
@@ -90,6 +96,7 @@ export async function GET(request) {
         postedByClerkUserId:    jp.postedByClerkUserId,
         jobTitle:               jp.jobTitle,
         jobCategory:            jp.jobCategory,
+        jobCategoryName:        jp.jobCategoryName,
         jobType:                jp.jobType,
         jobLocationType:        jp.jobLocationType,
         jobLocationAddress:     jp.jobLocationAddress,

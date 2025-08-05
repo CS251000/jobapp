@@ -6,6 +6,7 @@ export async function GET() {
   try {
     const roles = await db.select({
       desiredJobRoleId: desiredJobRoles.desiredJobRoleId,
+      categoryId: desiredJobRoles.categoryId,
       roleName: desiredJobRoles.roleName,
     }).from(desiredJobRoles);
     return NextResponse.json(roles);

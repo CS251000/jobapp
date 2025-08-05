@@ -1,0 +1,2 @@
+ALTER TABLE "desired_job_roles" ADD COLUMN "job_role_category" varchar(100);--> statement-breakpoint
+ALTER TABLE "desired_job_roles" ADD CONSTRAINT "desired_job_roles_job_role_category_categories_category_id_fk" FOREIGN KEY ("job_role_category") REFERENCES "public"."categories"("category_id") ON DELETE cascade ON UPDATE no action;

@@ -3,66 +3,60 @@
 import React, { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useUser, SignInButton } from "@clerk/nextjs";
-import TextField from "@mui/material/TextField";
-import {
-  Checkbox,
-  FormControl,
-  InputLabel,
-  ListItemText,
-  MenuItem,
-  Select,
-  SelectChangeEvent,
-  OutlinedInput,
-} from "@mui/material";
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
 import {
   Popover,
   PopoverTrigger,
   PopoverContent,
 } from "@/components/ui/popover";
 import {
+  FormControl,
+  InputLabel,
+  Select as MuiSelect,
+  MenuItem,
+  Checkbox,
+  ListItemText,
+  OutlinedInput,
+} from "@mui/material";
+
+import { Calendar } from "@/components/ui/calendar";
+import { CalendarIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
   Select as ShadSelect,
+  SelectTrigger,
+  SelectValue,
   SelectContent,
   SelectGroup,
   SelectItem,
-  SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
-import { jobTypes, jobLocations, jobCategories } from "@/utils/constants";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import StateCitySelect from "@/components/form/stateCityDropdown";
+import { jobTypes, jobLocations, jobCategories } from "@/utils/constants";
 
-const ITEM_HEIGHT = 48;
-const ITEM_PADDING_TOP = 8;
-const MenuProps = {
-  PaperProps: {
-    style: {
-      maxHeight: ITEM_HEIGHT * 4.5 + ITEM_PADDING_TOP,
-      width: 300,
-    },
-  },
+const STEP_TITLES = {
+  1: "Basic Job Details",
+  2: "Job Description",
+  3: "Additional Requirements",
+  4: "Scheduling & Extras",
 };
 
 export default function JobPostingPage() {
   const { user, isSignedIn, isLoaded } = useUser();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const companyId = searchParams.get("companyId");
+  const companyId = useSearchParams().get("companyId") || "";
 
-  // Step state (1, 2, or 3)
   const [step, setStep] = useState(1);
+  const [formTitle, setFormTitle] = useState(STEP_TITLES[1]);
   const [openCalendar, setOpenCalendar] = useState(false);
-  const[isSubmitting,setIsSubmitting]= useState(false);
-
-  // Available lists
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [availableRoles, setAvailableRoles] = useState([]);
   const [availableSkills, setAvailableSkills] = useState([]);
 
-  // Form state matching schema
   const [form, setForm] = useState({
-    companyId: companyId || "",
+    companyId,
     postedByClerkUserId: "",
     jobTitle: "",
     jobCategory: "",
@@ -72,147 +66,93 @@ export default function JobPostingPage() {
     jobLocationCity: "",
     jobLocationState: "",
     zipCode: "",
-    jobRole: [],
-    skills: [],
-    applicationDeadline: format(new Date(), "yyyy-MM-dd"),
     jobDescription: "",
     keyResponsibilities: "",
     requiredQualifications: "",
     experienceLevelRequired: "",
+    applicationDeadline: format(new Date(), "yyyy-MM-dd"),
     salaryMin: "",
     salaryMax: "",
     howToApply: "",
+    jobRole: [],
+    skills: [],
+    vacancies: 1,
+    minAge: 18,
+    maxAge: 35,
+    languages: [],
+    jobTimingStartTime: "",
+    jobTimingEndTime: "",
+    jobTimingDays: [],
   });
+  const [categories, setCategories] = useState([]);
+  // update title on step change
+  useEffect(() => {
+    setFormTitle(STEP_TITLES[step]);
+  }, [step]);
 
+  // fill clerk user id
   useEffect(() => {
     if (isLoaded && user) {
-      setForm((prev) => ({
-        ...prev,
-        postedByClerkUserId: user.id,
-      }));
+      setForm((f) => ({ ...f, postedByClerkUserId: user.id }));
     }
   }, [isLoaded, user]);
+
+  // fetch roles & skills
   useEffect(() => {
-    async function fetchSkills() {
-      try {
-        const res = await fetch("/api/skills");
-        if (!res.ok) throw new Error("Failed to fetch skills");
-        const data = await res.json();
-        setAvailableSkills(data);
-      } catch (error) {
-        console.error("Error fetching skills:", error);
-      }
-    }
-    fetchSkills();
+    fetch("/api/desired-job-roles")
+      .then((r) => r.json())
+      .then(setAvailableRoles)
+      .catch(console.error);
+    fetch("/api/skills")
+      .then((r) => r.json())
+      .then(setAvailableSkills)
+      .catch(console.error);
+    fetch("/api/categories")
+      .then((r) => r.json())
+      .then(setCategories)
+      .catch(console.error);
   }, []);
 
-  useEffect(() => {
-    async function fetchRoles() {
-      try {
-        const res = await fetch("/api/desired-job-roles");
-        if (!res.ok) throw new Error("Failed to fetch roles");
-        const data = await res.json();
-        setAvailableRoles(data);
-      } catch (error) {
-        console.error("Error fetching desired roles:", error);
-      }
-    }
-    fetchRoles();
-  }, []);
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleJobRolesChange = (event) => {
-    const {
-      target: { value },
-    } = event;
-    setForm((prev) => ({
-      ...prev,
-      jobRole: typeof value === "string" ? value.split(",") : value,
-    }));
-  };
-
-  const handleSkillsChange = (event) => {
-    const {
-      target: { value },
-    } = event;
-    setForm((prev) => ({
-      ...prev,
-      skills: typeof value === "string" ? value.split(",") : value,
-    }));
+  const updateField = (name, value) => {
+    setForm((f) => ({ ...f, [name]: value }));
   };
 
   const goNext = () => {
-    if (step === 1) {
-      if (!form.jobTitle.trim()) {
-        alert("Please enter Job Title.");
-        return;
-      }
+    // simple validation
+    if (step === 1 && !form.jobTitle.trim()) {
+      return alert("Please enter Job Title.");
     }
-    if (step === 2) {
-      if (!form.jobDescription.trim()) {
-        alert("Please enter Job Description.");
-        return;
-      }
+    if (step === 2 && !form.jobDescription.trim()) {
+      return alert("Please enter Job Description.");
     }
-    setStep((prev) => prev + 1);
+    setStep((s) => Math.min(s + 1, 4));
   };
-  const goBack = () => {
-    if (step > 1) setStep((prev) => prev - 1);
-  };
+  const goBack = () => setStep((s) => Math.max(s - 1, 1));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const jobRoleText = form.jobRole.join(",");
     setIsSubmitting(true);
-
-    const payload = {
-      companyId: form.companyId,
-      postedByClerkUserId: form.postedByClerkUserId,
-      jobTitle: form.jobTitle,
-      jobCategory: form.jobCategory,
-      jobType: form.jobType,
-      jobLocationType: form.jobLocationType,
-      jobLocationAddress: form.jobLocationAddress,
-      jobLocationCity: form.jobLocationCity,
-      jobLocationState: form.jobLocationState,
-      zipCode: form.zipCode,
-      jobRole: jobRoleText,
-      applicationDeadline: form.applicationDeadline,
-      jobDescription: form.jobDescription,
-      keyResponsibilities: form.keyResponsibilities,
-      requiredQualifications: form.requiredQualifications,
-      experienceLevelRequired: form.experienceLevelRequired,
-      salaryMin: form.salaryMin ? Number(form.salaryMin) : null,
-      salaryMax: form.salaryMax ? Number(form.salaryMax) : null,
-      howToApply: form.howToApply,
-      skills: form.skills.map((skillId) => ({
-        skillId,
-        skillType: "Required",
-      })),
-    };
-
-
     try {
+      const payload = {
+        ...form,
+        salaryMin: form.salaryMin ? Number(form.salaryMin) : null,
+        salaryMax: form.salaryMax ? Number(form.salaryMax) : null,
+        skills: form.skills.map((skillId) => ({
+          skillId,
+          skillType: "Required",
+        })),
+      };
+
       const res = await fetch("/api/add-job-posting", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      if (!res.ok) {
-        const err = await res.json();
-        console.error("Error creating job posting:", err);
-        alert(err.error || "Failed to publish job.");
-        return;
-      }
+      if (!res.ok) throw new Error((await res.json()).error || "Failed");
       router.push(`/job-giver/dashboard?companyId=${companyId}`);
-    } catch (error) {
-      console.error("Unexpected error:", error);
-      alert("Unexpected error. Please try again.");
-    }finally{
+    } catch (err) {
+      alert(err.message);
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -221,227 +161,300 @@ export default function JobPostingPage() {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-100">
         <SignInButton mode="modal">
-          <h1 className="text-xl font-semibold text-gray-700 cursor-pointer">
+          <span className="text-xl font-semibold text-gray-700 cursor-pointer">
             Please sign in to continue
-          </h1>
+          </span>
         </SignInButton>
       </div>
     );
   }
 
   return (
-    <div className="flex items-center justify-center py-12 bg-gradient-to-tr from-white to-gray-100 min-h-screen text-black">
-      <div className="max-w-3xl w-full bg-white p-10 rounded-3xl shadow-2xl border border-gray-200">
-        <h1 className="font-bold text-blue-700 text-3xl text-center mb-6">
-          New Job Posting
+    <div className="min-h-screen bg-gradient-to-tr from-white to-gray-100 flex items-center justify-center py-12">
+      <div className="w-full max-w-3xl bg-white p-10 rounded-3xl shadow-2xl border border-gray-200">
+        <h1 className="text-3xl font-bold text-blue-700 text-center mb-6">
+          {formTitle}
         </h1>
-
-        {/* Step Indicators */}
+        {/* step dots */}
         <div className="flex justify-center space-x-4 mb-6">
-          {[1, 2, 3].map((s) => (
-            <div
+          {[1, 2, 3, 4].map((s) => (
+            <button
               key={s}
-              className={`w-8 h-8 rounded-full flex items-center justify-center cursor-pointer ${
+              onClick={() => setStep(s)}
+              className={`w-8 h-8 rounded-full flex items-center justify-center ${
                 step === s
                   ? "bg-indigo-600 text-white"
                   : "bg-gray-200 text-gray-500"
               }`}
-              onClick={() => setStep(s)}
             >
               {s}
-            </div>
+            </button>
           ))}
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Step 1: Basic Info */}
+          {/* STEP 1: Basic Job Details */}
           {step === 1 && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <TextField
-                  fullWidth
-                  label="Job Title"
-                  name="jobTitle"
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <Label htmlFor="jobTitle" className={"mb-2"}>
+                  Job Title
+                </Label>
+                <Input
+                  id="jobTitle"
                   value={form.jobTitle}
-                  onChange={handleChange}
-                  required
+                  onChange={(e) => updateField("jobTitle", e.target.value)}
                 />
-                <FormControl fullWidth>
-                  <InputLabel id="job-category-label">Job Category</InputLabel>
-                  <Select
-                    labelId="job-category-label"
-                    label="Job Category"
-                    name="jobCategory"
-                    value={form.jobCategory}
-                    onChange={(e) => {
-                      const { value, name } = e.target;
-                      setForm((prev) => ({ ...prev, [name]: value }));
+              </div>
+              <div>
+                <Label htmlFor="jobCategory" className={"mb-2"}>
+                  Job Category
+                </Label>
+                <ShadSelect
+                  value={form.jobCategory}
+                  onValueChange={(v) => updateField("jobCategory", v)}
+                >
+                  <SelectTrigger id="jobCategory" className="w-full">
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {categories.map((c) => (
+                        <SelectItem key={c.categoryId} value={c.categoryId}>
+                          {c.categoryName}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </ShadSelect>
+              </div>
+              
+
+              {/* Roles & Skills */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormControl className="w-full">
+                  <InputLabel>Job Roles</InputLabel>
+                  <MuiSelect
+                    multiple
+                    value={form.jobRole}
+                    onChange={(e) =>
+                      updateField(
+                        "jobRole",
+                        typeof e.target.value === "string"
+                          ? e.target.value.split(",")
+                          : e.target.value
+                      )
+                    }
+                    input={<OutlinedInput label="Job Roles" />}
+                    renderValue={(sel) =>
+                      availableRoles
+                        .filter((r) => sel.includes(r.desiredJobRoleId))
+                        .map((r) => r.roleName)
+                        .join(", ")
+                    }
+                    onOpen={(e) => {
+                      if (!form.jobCategory) {
+                        e.preventDefault();
+                        alert("Please select a job category first.");
+                      }
                     }}
                   >
-                    {jobCategories.map((category) => (
-                      <MenuItem key={category} value={category}>
-                        {category}
-                      </MenuItem>
-                    ))}
-                  </Select>
+                    {availableRoles
+                      .filter((r) => r.categoryId === form.jobCategory)
+                      .map((r) => (
+                        <MenuItem
+                          key={r.desiredJobRoleId}
+                          value={r.desiredJobRoleId}
+                        >
+                          <Checkbox
+                            checked={form.jobRole.includes(r.desiredJobRoleId)}
+                          />
+                          <ListItemText primary={r.roleName} />
+                        </MenuItem>
+                      ))}
+                  </MuiSelect>
                 </FormControl>
 
-                <div className="flex flex-col">
-                  <label className="text-sm font-semibold text-gray-600 mb-1">
-                    Job Type
-                  </label>
-                  <ShadSelect
-                    value={form.jobType}
-                    onValueChange={(val) =>
-                      setForm((prev) => ({ ...prev, jobType: val }))
+                <FormControl className="w-full">
+                  <InputLabel>Skills</InputLabel>
+                  <MuiSelect
+                    multiple
+                    value={form.skills}
+                    onChange={(e) =>
+                      updateField(
+                        "skills",
+                        typeof e.target.value === "string"
+                          ? e.target.value.split(",")
+                          : e.target.value
+                      )
+                    }
+                    input={<OutlinedInput label="Skills" />}
+                    renderValue={(sel) =>
+                      availableSkills
+                        .filter((s) => sel.includes(s.skillId))
+                        .map((s) => s.skillName)
+                        .join(", ")
                     }
                   >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select job type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        {jobTypes.map((t) => (
-                          <SelectItem key={t.key} value={t.value}>
-                            {t.value}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    </SelectContent>
-                  </ShadSelect>
-                </div>
+                    {availableSkills.map((s) => (
+                      <MenuItem key={s.skillId} value={s.skillId}>
+                        <Checkbox checked={form.skills.includes(s.skillId)} />
+                        <ListItemText primary={s.skillName} />
+                      </MenuItem>
+                    ))}
+                  </MuiSelect>
+                </FormControl>
+              </div>
 
-                <div className="flex flex-col">
-                  <label className="text-sm font-semibold text-gray-600 mb-1">
-                    Location Type
-                  </label>
-                  <ShadSelect
-                    value={form.jobLocationType}
-                    onValueChange={(val) =>
-                      setForm((prev) => ({ ...prev, jobLocationType: val }))
-                    }
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select location type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        {jobLocations.map((loc) => (
-                          <SelectItem key={loc.key} value={loc.value}>
-                            {loc.value}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    </SelectContent>
-                  </ShadSelect>
-                </div>
+              <div>
+                <Label htmlFor="jobType" className={"mb-2"}>
+                  Job Type
+                </Label>
+                <ShadSelect
+                  value={form.jobType}
+                  onValueChange={(v) => updateField("jobType", v)}
+                >
+                  <SelectTrigger id="jobType" className="w-full">
+                    <SelectValue placeholder="Select job type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {jobTypes.map((t) => (
+                        <SelectItem key={t.key} value={t.value}>
+                          {t.value}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </ShadSelect>
+              </div>
 
-                <div className="md:col-span-2">
-                  <TextField
-                    fullWidth
-                    label="Location Address"
-                    name="jobLocationAddress"
-                    multiline
-                    minRows={2}
-                    value={form.jobLocationAddress}
-                    onChange={handleChange}
-                  />
-                </div>
+              <div>
+                <Label htmlFor="jobLocationType" className={"mb-2"}>
+                  Location Type
+                </Label>
+                <ShadSelect
+                  value={form.jobLocationType}
+                  onValueChange={(v) => updateField("jobLocationType", v)}
+                >
+                  <SelectTrigger id="jobLocationType" className="w-full">
+                    <SelectValue placeholder="Select location type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {jobLocations.map((l) => (
+                        <SelectItem key={l.key} value={l.value}>
+                          {l.value}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </ShadSelect>
+              </div>
 
-                <div className="md:col-span-2">
-                  <StateCitySelect
-                    stateValue={form.jobLocationState}
-                    cityValue={form.jobLocationCity}
-                    zipValue={form.zipCode}
-                    onStateChange={(val) =>
-                      setForm((prev) => ({ ...prev, jobLocationState: val }))
-                    }
-                    onCityChange={(val) =>
-                      setForm((prev) => ({ ...prev, jobLocationCity: val }))
-                    }
-                    onZipChange={(val) =>
-                      setForm((prev) => ({ ...prev, zipCode: val }))
-                    }
-                  />
-                </div>
+              <div className="md:col-span-2">
+                <Label htmlFor="jobLocationAddress" className={"mb-2"}>
+                  Address
+                </Label>
+                <Textarea
+                  id="jobLocationAddress"
+                  rows={2}
+                  value={form.jobLocationAddress}
+                  onChange={(e) =>
+                    updateField("jobLocationAddress", e.target.value)
+                  }
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <StateCitySelect
+                  stateValue={form.jobLocationState}
+                  cityValue={form.jobLocationCity}
+                  zipValue={form.zipCode}
+                  onStateChange={(v) => updateField("jobLocationState", v)}
+                  onCityChange={(v) => updateField("jobLocationCity", v)}
+                  onZipChange={(v) => updateField("zipCode", v)}
+                />
               </div>
             </div>
           )}
 
-          {/* Step 2: Description & Requirements */}
+          {/* STEP 2: Description + Roles & Skills */}
           {step === 2 && (
             <div className="space-y-6">
-              <div className="md:col-span-2">
-                <TextField
-                  fullWidth
-                  label="Job Description"
-                  name="jobDescription"
-                  multiline
-                  minRows={4}
+              <div>
+                <Label htmlFor="jobDescription" className={"mb-2"}>
+                  Job Description
+                </Label>
+                <Textarea
+                  id="jobDescription"
+                  rows={4}
                   value={form.jobDescription}
-                  onChange={handleChange}
-                  required
+                  onChange={(e) =>
+                    updateField("jobDescription", e.target.value)
+                  }
                 />
               </div>
-
-              <div className="md:col-span-2">
-                <TextField
-                  fullWidth
-                  label="Key Responsibilities"
-                  name="keyResponsibilities"
-                  multiline
-                  minRows={3}
+              <div>
+                <Label htmlFor="keyResponsibilities" className={"mb-2"}>
+                  Key Responsibilities
+                </Label>
+                <Textarea
+                  id="keyResponsibilities"
+                  rows={3}
                   value={form.keyResponsibilities}
-                  onChange={handleChange}
+                  onChange={(e) =>
+                    updateField("keyResponsibilities", e.target.value)
+                  }
                 />
               </div>
-
-              <div className="md:col-span-2">
-                <TextField
-                  fullWidth
-                  label="Required Qualifications"
-                  name="requiredQualifications"
-                  multiline
-                  minRows={3}
+              <div>
+                <Label htmlFor="requiredQualifications" className={"mb-2"}>
+                  Required Qualifications
+                </Label>
+                <Textarea
+                  id="requiredQualifications"
+                  rows={3}
                   value={form.requiredQualifications}
-                  onChange={handleChange}
+                  onChange={(e) =>
+                    updateField("requiredQualifications", e.target.value)
+                  }
                 />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <TextField
-                  fullWidth
-                  label="Experience Level Required"
-                  name="experienceLevelRequired"
-                  value={form.experienceLevelRequired}
-                  onChange={handleChange}
-                />
-                <div className="flex flex-col">
-                  <label className="text-sm font-semibold text-gray-600 mb-1">
-                    Application Deadline
-                  </label>
+                <div>
+                  <Label htmlFor="experienceLevelRequired" className={"mb-2"}>
+                    Experience Level
+                  </Label>
+                  <Input
+                    id="experienceLevelRequired"
+                    value={form.experienceLevelRequired}
+                    onChange={(e) =>
+                      updateField("experienceLevelRequired", e.target.value)
+                    }
+                  />
+                </div>
+
+                <div>
+                  <Label className={"mb-2"}>Application Deadline</Label>
                   <Popover open={openCalendar} onOpenChange={setOpenCalendar}>
                     <PopoverTrigger asChild>
                       <Button
-                        variant={"outline"}
-                        className="w-full justify-start text-left font-normal hover:cursor-pointer"
+                        variant="outline"
+                        className="w-full justify-start text-left"
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {form.applicationDeadline
-                          ? format(new Date(form.applicationDeadline), "PPP")
-                          : "Pick a date"}
+                        {format(new Date(form.applicationDeadline), "PPP")}
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
+                    <PopoverContent align="start" className="p-0">
                       <Calendar
                         mode="single"
                         selected={form.applicationDeadline}
-                        onSelect={(date) => {
-                          if (date) {
-                            setForm((prev) => ({
-                              ...prev,
-                              applicationDeadline: date,
-                            }));
+                        onSelect={(d) => {
+                          if (d) {
+                            updateField("applicationDeadline", d);
                             setOpenCalendar(false);
                           }
                         }}
@@ -453,125 +466,188 @@ export default function JobPostingPage() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <TextField
-                  fullWidth
-                  label="Salary Min (₹)"
-                  name="salaryMin"
-                  type="number"
-                  value={form.salaryMin}
-                  onChange={handleChange}
-                />
-                <TextField
-                  fullWidth
-                  label="Salary Max (₹)"
-                  name="salaryMax"
-                  type="number"
-                  value={form.salaryMax}
-                  onChange={handleChange}
-                />
+                <div>
+                  <Label htmlFor="salaryMin" className={"mb-2"}>
+                    Salary Min (₹)
+                  </Label>
+                  <Input
+                    id="salaryMin"
+                    type="number"
+                    value={form.salaryMin}
+                    onChange={(e) => updateField("salaryMin", e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="salaryMax" className={"mb-2"}>
+                    Salary Max (₹)
+                  </Label>
+                  <Input
+                    id="salaryMax"
+                    type="number"
+                    value={form.salaryMax}
+                    onChange={(e) => updateField("salaryMax", e.target.value)}
+                  />
+                </div>
               </div>
 
-              <div className="md:col-span-2">
-                <TextField
-                  fullWidth
-                  label="How To Apply"
-                  name="howToApply"
-                  multiline
-                  minRows={2}
+              <div>
+                <Label htmlFor="howToApply" className={"mb-2"}>
+                  How To Apply
+                </Label>
+                <Textarea
+                  id="howToApply"
+                  rows={2}
                   value={form.howToApply}
-                  onChange={handleChange}
+                  onChange={(e) => updateField("howToApply", e.target.value)}
                 />
               </div>
             </div>
           )}
 
-          {/* Step 3: Roles & Skills */}
+          {/* STEP 3: Additional Requirements */}
           {step === 3 && (
-            <div className="space-y-6">
-              <FormControl sx={{ m: 1, width: "100%" }}>
-                <InputLabel id="jobrole-label">Job Roles</InputLabel>
-                <Select
-                  labelId="jobrole-label"
-                  multiple
-                  value={form.jobRole}
-                  onChange={handleJobRolesChange}
-                  input={<OutlinedInput label="Job Roles" />}
-                  renderValue={(selected) =>
-                    availableRoles
-                      .filter((r) => selected.includes(r.desiredJobRoleId))
-                      .map((r) => r.roleName)
-                      .join(", ")
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <Label htmlFor="vacancies" className={"mb-2"}>
+                  Vacancies
+                </Label>
+                <Input
+                  id="vacancies"
+                  type="number"
+                  value={form.vacancies}
+                  onChange={(e) =>
+                    updateField("vacancies", Number(e.target.value))
                   }
-                  MenuProps={MenuProps}
+                />
+              </div>
+              <div>
+                <Label htmlFor="minAge" className={"mb-2"}>
+                  Min Age
+                </Label>
+                <Input
+                  id="minAge"
+                  type="number"
+                  value={form.minAge}
+                  onChange={(e) => updateField("minAge", e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="maxAge" className={"mb-2"}>
+                  Max Age
+                </Label>
+                <Input
+                  id="maxAge"
+                  type="number"
+                  value={form.maxAge}
+                  onChange={(e) => updateField("maxAge", e.target.value)}
+                />
+              </div>
+              <FormControl fullWidth>
+                <InputLabel id="languages-label">Languages</InputLabel>
+                <MuiSelect
+                  labelId="languages-label"
+                  multiple
+                  value={form.languages}
+                  onChange={(e) =>
+                    updateField(
+                      "languages",
+                      typeof e.target.value === "string"
+                        ? e.target.value.split(",")
+                        : e.target.value
+                    )
+                  }
+                  input={<OutlinedInput label="Languages" />}
+                  renderValue={(selected) => selected.join(", ")}
                 >
-                  {availableRoles.map((role) => (
-                    <MenuItem
-                      key={role.desiredJobRoleId}
-                      value={role.desiredJobRoleId}
-                    >
-                      <Checkbox
-                        checked={form.jobRole.includes(role.desiredJobRoleId)}
-                      />
-                      <ListItemText primary={role.roleName} />
+                  {["English", "Hindi", "Spanish"].map((lang) => (
+                    <MenuItem key={lang} value={lang}>
+                      <Checkbox checked={form.languages.includes(lang)} />
+                      <ListItemText primary={lang} />
                     </MenuItem>
                   ))}
-                </Select>
-              </FormControl>
-
-              <FormControl sx={{ m: 1, width: "100%" }}>
-                <InputLabel id="skills-label">Skills</InputLabel>
-                <Select
-                  labelId="skills-label"
-                  multiple
-                  value={form.skills}
-                  onChange={handleSkillsChange}
-                  input={<OutlinedInput label="Skills" />}
-                  renderValue={(selected) =>
-                    availableSkills
-                      .filter((s) => selected.includes(s.skillId))
-                      .map((s) => s.skillName)
-                      .join(", ")
-                  }
-                  MenuProps={MenuProps}
-                >
-                  {availableSkills.map((skill) => (
-                    <MenuItem key={skill.skillId} value={skill.skillId}>
-                      <Checkbox checked={form.skills.includes(skill.skillId)} />
-                      <ListItemText primary={skill.skillName} />
-                    </MenuItem>
-                  ))}
-                </Select>
+                </MuiSelect>
               </FormControl>
             </div>
           )}
 
-          {/* Navigation Buttons */}
+          {/* STEP 4: Scheduling */}
+          {step === 4 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <Label htmlFor="jobTimingStartTime" className={"mb-2"}>
+                  Start Time
+                </Label>
+                <Input
+                  id="jobTimingStartTime"
+                  value={form.jobTimingStartTime}
+                  onChange={(e) =>
+                    updateField("jobTimingStartTime", e.target.value)
+                  }
+                />
+              </div>
+              <div>
+                <Label htmlFor="jobTimingEndTime" className={"mb-2"}>
+                  End Time
+                </Label>
+                <Input
+                  id="jobTimingEndTime"
+                  value={form.jobTimingEndTime}
+                  onChange={(e) =>
+                    updateField("jobTimingEndTime", e.target.value)
+                  }
+                />
+              </div>
+              <FormControl fullWidth>
+                <InputLabel id="timing-days-label">Job Timing Days</InputLabel>
+                <MuiSelect
+                  labelId="timing-days-label"
+                  multiple
+                  value={form.jobTimingDays}
+                  onChange={(e) =>
+                    updateField(
+                      "jobTimingDays",
+                      typeof e.target.value === "string"
+                        ? e.target.value.split(",")
+                        : e.target.value
+                    )
+                  }
+                  input={<OutlinedInput label="Job Timing Days" />}
+                  renderValue={(selected) => selected.join(", ")}
+                >
+                  {[
+                    "Monday",
+                    "Tuesday",
+                    "Wednesday",
+                    "Thursday",
+                    "Friday",
+                    "Saturday",
+                    "Sunday",
+                  ].map((day) => (
+                    <MenuItem key={day} value={day}>
+                      <Checkbox checked={form.jobTimingDays.includes(day)} />
+                      <ListItemText primary={day} />
+                    </MenuItem>
+                  ))}
+                </MuiSelect>
+              </FormControl>
+            </div>
+          )}
+
+          {/* NAV CONTROLS */}
           <div className="flex justify-between pt-4">
             {step > 1 && (
-              <Button
-                type="button"
-                onClick={goBack}
-                className="px-6 py-2 bg-gray-300 rounded-lg hover:bg-gray-400 text-black"
-              >
+              <Button type="button" variant="outline" onClick={goBack}>
                 Back
               </Button>
             )}
-            {step < 3 && (
-              <Button
-                type="button"
-                onClick={goNext}
-                className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-              >
+            {step < 4 && (
+              <Button type="button" onClick={goNext}>
                 Next
               </Button>
             )}
-            {step === 3 && (
-              <Button
-                type="submit"
-                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                disabled= {isSubmitting}
-              >
-                {isSubmitting?'Posting...' :'Publish Job'}
+            {step === 4 && (
+              <Button type="submit" disabled={isSubmitting}>
+                Publish Job
               </Button>
             )}
           </div>

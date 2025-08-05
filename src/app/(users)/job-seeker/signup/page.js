@@ -4,7 +4,6 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useUser, SignInButton } from "@clerk/nextjs";
-import { jobLocations, jobTypes } from "@/utils/constants";
 import OutlinedInput from "@mui/material/OutlinedInput";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
@@ -32,8 +31,8 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import StateCitySelect from "@/components/form/stateCityDropdown";
+import { jobTypes, jobLocations } from "@/utils/constants";
 import { supabase } from "@/utils/supabase/supabaseClient";
-import Link from "next/link";
 
 const ITEM_HEIGHT = 48;
 const ITEM_PADDING_TOP = 8;
@@ -49,98 +48,95 @@ const MenuProps = {
 export default function JobSeekerSignupPage() {
   const { user, isSignedIn, isLoaded } = useUser();
   const router = useRouter();
+
+  const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [isExisting, setIsExisting] = useState(false);
+  const [openCalendar, setOpenCalendar] = useState(false);
 
-  // ─────────────────── STEP STATE (starts at 1) ───────────────────
-  const [step, setStep] = useState(1);
-
-  // ─────────────────── LOOKUPS ───────────────────
+  // lookups
+  const [categories, setCategories] = useState([]);
   const [availableRoles, setAvailableRoles] = useState([]);
   const [availableSkills, setAvailableSkills] = useState([]);
 
-  // ─────────────────── FORM STATE ───────────────────
+  // form state
   const [form, setForm] = useState({
-    fullName: "",
     clerkId: "",
+    fullName: "",
     email: "",
     phone: "",
     address: "",
     city: "",
     state: "",
     zip: "",
-    jobRoles: [],          // Array<string>
-    skills: [],            // Array<string>
-    resume: null,          // File object
-    resumeUrl: "",         // existing URL (if editing)
-    publicResumeUrl: "",   // used to view existing PDF
+    jobCategory: "",
+    jobRoles: [],
+    skills: [],
+    aboutMe: "",
+    resume: null,
+    resumeUrl: "",
+    publicResumeUrl: "",
     expectedSalary: "",
     experience: "",
-    availability: "",      // single enum‐string
-    startDate: null,       // Date object
-    jobLocation: "",       // single enum‐string
-    aboutMe: "",
+    availability: "",
+    startDate: null,
+    jobLocation: "",
     willingToRelocate: false,
     profilePictureUrl: "",
   });
 
-  // ─────────────────── PREFILL USER BASIC INFO ───────────────────
+  // 1. prefill basic user info
   useEffect(() => {
     if (isLoaded && user) {
-      setForm((prev) => ({
-        ...prev,
+      setForm((p) => ({
+        ...p,
         clerkId: user.id,
-        fullName: user.fullName ?? "",
-        email: user.emailAddresses[0]?.emailAddress ?? "",
-        phone: user.phoneNumbers[0]?.phoneNumber ?? "",
+        fullName: user.fullName || "",
+        email: user.emailAddresses[0]?.emailAddress || "",
+        phone: user.phoneNumbers[0]?.phoneNumber || "",
         profilePictureUrl: user.imageUrl || "",
       }));
     }
   }, [isLoaded, user]);
 
-  // ─────────────────── FETCH LOOKUPS & EXISTING PROFILE ───────────────────
+  // 2. fetch lookups & existing profile
   useEffect(() => {
     if (!isLoaded || !user) return;
 
-    async function fetchRoles() {
-      try {
-        const res = await fetch("/api/desired-job-roles");
-        if (!res.ok) throw new Error("Failed to fetch desired roles");
-        const data = await res.json();
-        setAvailableRoles(data);
-      } catch (err) {
-        console.error("Error fetching desired roles:", err);
-      }
-    }
+    // categories
+    fetch("/api/categories")
+      .then((r) => r.json())
+      .then(setCategories)
+      .catch(console.error);
 
-    async function fetchSkills() {
-      try {
-        const res = await fetch("/api/skills");
-        if (!res.ok) throw new Error("Failed to fetch skills");
-        const data = await res.json();
-        setAvailableSkills(data);
-      } catch (err) {
-        console.error("Error fetching skills:", err);
-      }
-    }
+    // desired roles
+    fetch("/api/desired-job-roles")
+      .then((r) => r.json())
+      .then(setAvailableRoles)
+      .catch(console.error);
 
-    async function fetchExistingProfile() {
-      try {
-        const res = await fetch(`/api/get-seeker-profile?userId=${user.id}`);
-        if (res.status === 404) {
-          setIsExisting(false);
-          return;
-        }
-        if (!res.ok) throw new Error("Failed to fetch existing profile");
-        const data = await res.json();
-        if (data.isExisting) {
+    // skills
+    fetch("/api/skills")
+      .then((r) => r.json())
+      .then(setAvailableSkills)
+      .catch(console.error);
+
+    // existing profile
+    fetch(`/api/get-seeker-profile?userId=${user.id}`)
+      .then((r) => {
+        if (r.status === 404) return null;
+        if (!r.ok) throw new Error();
+        return r.json();
+      })
+      .then((data) => {
+        if (data?.isExisting) {
           setIsExisting(true);
-          setForm((prev) => ({
-            ...prev,
-            fullName: data.fullName || prev.fullName,
-            email: data.email || prev.email,
-            phone: data.phone || prev.phone,
-            profilePictureUrl: data.profilePictureUrl || prev.profilePictureUrl,
+          setForm((p) => ({
+            ...p,
+            fullName: data.fullName || p.fullName,
+            email: data.email || p.email,
+            phone: data.phone || p.phone,
+            profilePictureUrl: data.profilePictureUrl || p.profilePictureUrl,
             address: data.address || "",
             city: data.locationCity || "",
             state: data.locationState || "",
@@ -154,101 +150,81 @@ export default function JobSeekerSignupPage() {
             startDate: data.availabilityStartDate
               ? new Date(data.availabilityStartDate)
               : null,
+            jobCategory: data.jobCategory || "",
             jobRoles: data.jobRoles || [],
             skills: data.skills || [],
-            availability:
-              (data.desiredJobTypes && data.desiredJobTypes[0]) || "",
-            jobLocation:
-              (data.preferredLocationTypes && data.preferredLocationTypes[0]) ||
-              "",
+            availability: data.desiredJobTypes?.[0] || "",
+            jobLocation: data.preferredLocationTypes?.[0] || "",
           }));
-        } else {
-          setIsExisting(false);
         }
-      } catch (err) {
-        console.error("Error fetching existing profile:", err);
-      }
-    }
-
-    fetchRoles();
-    fetchSkills();
-    fetchExistingProfile();
+      })
+      .catch(console.error);
   }, [isLoaded, user]);
 
-  // ─────────────────── HANDLERS ───────────────────
+  // 3. whenever category changes, clear roles
+  useEffect(() => {
+    setForm((p) => ({ ...p, jobRoles: [] }));
+  }, [form.jobCategory]);
+
+  // filter roles by selected category
+  const filteredRoles = form.jobCategory
+    ? availableRoles.filter((r) => r.categoryId === form.jobCategory)
+    : [];
+
+  // generic updater
+  const updateField = (name, value) =>
+    setForm((p) => ({ ...p, [name]: value }));
+
+  // multi‐select handler
+  const handleMulti = (name) => (e) => {
+    const val = e.target.value;
+    updateField(name, typeof val === "string" ? val.split(",") : val);
+  };
+
+  // file input handler
   const handleChangeSimple = (e) => {
     const { name, value, files, type, checked } = e.target;
-
     if (type === "file" && name === "resume" && files) {
-      setForm((prev) => ({
-        ...prev,
-        resume: files[0], // newly picked File
-      }));
-      return;
+      setForm((p) => ({ ...p, resume: files[0] }));
+    } else if (type === "checkbox") {
+      setForm((p) => ({ ...p, [name]: checked }));
+    } else {
+      updateField(name, value);
     }
-    if (type === "checkbox" && name === "willingToRelocate") {
-      setForm((prev) => ({ ...prev, willingToRelocate: checked }));
-      return;
-    }
-    setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleJobRolesChange = (event) => {
-    const { value } = event.target;
-    setForm((prev) => ({
-      ...prev,
-      jobRoles: typeof value === "string" ? value.split(",") : value,
-    }));
-  };
-
-  const handleSkillsChange = (event) => {
-    const { value } = event.target;
-    setForm((prev) => ({
-      ...prev,
-      skills: typeof value === "string" ? value.split(",") : value,
-    }));
-  };
-
+  // form submit
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
 
-
+    // delete old resume if replaced
     let finalResumeUrl = form.resumeUrl;
-     if (form.resumeUrl && form.resume) {
+    if (form.resumeUrl && form.resume) {
       try {
         const parts = form.resumeUrl.split("/");
-        const oldFileName = parts[parts.length - 1]; 
-        const { error: removeError } = await supabase.storage
-          .from("resumes")
-          .remove([oldFileName]);
-        if (removeError) {
-          console.error("Failed to delete old resume:", removeError);
-        }
+        const oldFileName = parts[parts.length - 1];
+        await supabase.storage.from("resumes").remove([oldFileName]);
       } catch (err) {
-        console.error("Error deleting old resume:", err);
+        console.error("Failed to delete old resume", err);
       }
     }
+
+    // upload new resume
     if (form.resume) {
       try {
         const file = form.resume;
-        const fileExt = file.name.split(".").pop();
-        const fileName = `${user.id}_${Date.now()}.${fileExt}`;
-
+        const ext = file.name.split(".").pop();
+        const fileName = `${user.id}_${Date.now()}.${ext}`;
         const { data: uploadData, error: uploadError } =
           await supabase.storage
             .from("resumes")
-            .upload(fileName, file, {
-              cacheControl: "3600",
-              upsert: true,
-            });
+            .upload(fileName, file, { cacheControl: "3600", upsert: true });
         if (uploadError) throw uploadError;
-
         const { data: urlData } = supabase.storage
           .from("resumes")
           .getPublicUrl(uploadData.path);
-
-        finalResumeUrl = urlData.publicUrl; 
+        finalResumeUrl = urlData.publicUrl;
       } catch (err) {
         console.error("Resume upload error:", err);
         alert("Failed to upload resume. Please try again.");
@@ -257,10 +233,9 @@ export default function JobSeekerSignupPage() {
       }
     }
 
-    // 2. Build payload (align field names with route.js)
+    // build payload
     const payload = {
       clerkId: form.clerkId,
-      resumeUrl: finalResumeUrl,
       fullName: form.fullName,
       email: form.email,
       phone: form.phone,
@@ -276,14 +251,12 @@ export default function JobSeekerSignupPage() {
       startDate: form.startDate
         ? form.startDate.toISOString().split("T")[0]
         : null,
-      jobRoles: form.jobRoles,           
-      skills: form.skills,       
-      availability: form.availability
-        ? [form.availability]
-        : [],                     
-      jobLocation: form.jobLocation
-        ? [form.jobLocation]
-        : [],                             
+      jobCategory: form.jobCategory,
+      jobRoles: form.jobRoles,
+      skills: form.skills,
+      availability: form.availability ? [form.availability] : [],
+      jobLocation: form.jobLocation ? [form.jobLocation] : [],
+      resumeUrl: finalResumeUrl,
     };
 
     try {
@@ -293,10 +266,7 @@ export default function JobSeekerSignupPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      if (!res.ok) {
-        const { error } = await res.json();
-        throw new Error(error || "Failed to save profile");
-      }
+      if (!res.ok) throw new Error((await res.json()).error || "Failed");
       router.push("/job-seeker/dashboard");
     } catch (err) {
       console.error("Submission error:", err);
@@ -305,34 +275,31 @@ export default function JobSeekerSignupPage() {
     }
   };
 
-  // If not signed in, prompt to sign in
-  if (!user || !isSignedIn || !isLoaded) {
+  // require signin
+  if (!isLoaded || !isSignedIn || !user) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gradient-to-br from-gray-200 to-gray-400">
+      <div className="flex items-center justify-center h-screen bg-gray-200">
         <SignInButton mode="modal">
-          <h1 className="text-2xl font-bold text-black hover:cursor-pointer">
-            Please Sign In to continue
-          </h1>
+          <h1 className="text-2xl">Please Sign In to continue</h1>
         </SignInButton>
       </div>
     );
   }
 
   return (
-    <div className="flex items-center justify-center py-12 bg-gradient-to-tr from-white to-gray-100 min-h-screen text-black">
-      <div className="max-w-3xl w-full bg-white p-10 rounded-3xl shadow-2xl border border-gray-200">
+    <div className="flex items-center justify-center py-12 bg-gradient-to-tr from-white to-gray-100 min-h-screen">
+      <div className="max-w-3xl w-full bg-white p-10 rounded-3xl shadow-2xl border">
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* ───────────────────── STEP INDICATORS ───────────────────── */}
+          {/* STEP INDICATORS */}
           <div className="flex justify-center space-x-4 mb-4">
             {[1, 2, 3].map((s) => (
               <div
                 key={s}
-                className={`w-8 h-8 rounded-full flex items-center justify-center cursor-pointer 
-                  ${
-                    step === s
-                      ? "bg-indigo-600 text-white"
-                      : "bg-gray-200 text-gray-500"
-                  }`}
+                className={`w-8 h-8 rounded-full flex items-center justify-center cursor-pointer ${
+                  step === s
+                    ? "bg-indigo-600 text-white"
+                    : "bg-gray-200 text-gray-500"
+                }`}
                 onClick={() => setStep(s)}
               >
                 {s}
@@ -340,10 +307,10 @@ export default function JobSeekerSignupPage() {
             ))}
           </div>
 
-          {/* ───────────── STEP 1: PERSONAL INFO ───────────── */}
+          {/* STEP 1: PERSONAL INFO */}
           {step === 1 && (
             <>
-              <h1 className="font-bold text-blue-700 text-3xl text-center mb-8">
+              <h1 className="text-3xl font-bold text-blue-700 text-center mb-8">
                 Enter Personal Information
               </h1>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -351,15 +318,15 @@ export default function JobSeekerSignupPage() {
                   { label: "Full Name", name: "fullName", type: "text" },
                   { label: "Email", name: "email", type: "email" },
                   { label: "Phone Number", name: "phone", type: "tel" },
-                ].map((field) => (
-                  <div key={field.name}>
+                ].map((f) => (
+                  <div key={f.name}>
                     <label className="block text-sm font-semibold text-gray-600">
-                      {field.label}
+                      {f.label}
                     </label>
                     <input
-                      type={field.type}
-                      name={field.name}
-                      value={form[field.name]}
+                      type={f.type}
+                      name={f.name}
+                      value={form[f.name]}
                       onChange={handleChangeSimple}
                       required
                       className="mt-1 block w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -376,8 +343,8 @@ export default function JobSeekerSignupPage() {
                       name="profilePictureUrl"
                       value={form.profilePictureUrl}
                       onChange={handleChangeSimple}
-                      className="mt-1 block w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                       placeholder="Enter link to your profile picture"
+                      className="mt-1 block w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                   </div>
                 )}
@@ -398,56 +365,73 @@ export default function JobSeekerSignupPage() {
                     stateValue={form.state}
                     cityValue={form.city}
                     zipValue={form.zip}
-                    onStateChange={(val) =>
-                      setForm((prev) => ({ ...prev, state: val }))
-                    }
-                    onCityChange={(val) =>
-                      setForm((prev) => ({ ...prev, city: val }))
-                    }
-                    onZipChange={(val) =>
-                      setForm((prev) => ({ ...prev, zip: val }))
-                    }
+                    onStateChange={(v) => updateField("state", v)}
+                    onCityChange={(v) => updateField("city", v)}
+                    onZipChange={(v) => updateField("zip", v)}
                   />
                 </div>
               </div>
             </>
           )}
 
-          {/* ───────────── STEP 2: JOB ROLES & SKILLS ───────────── */}
+          {/* STEP 2: CATEGORY → ROLES → SKILLS */}
           {step === 2 && (
-            <div className="flex flex-col items-center">
-              <h1 className="font-bold text-blue-700 text-2xl mb-4 text-center">
-                Select Roles to Apply & Skills
+            <div className="space-y-6">
+              <h1 className="text-2xl font-bold text-blue-700 text-center">
+                Select Category, Roles & Skills
               </h1>
 
-              {/* Desired Job Roles */}
+              {/* Category */}
+              <div className="flex justify-center">
+                <div className="w-64">
+                  <ShadSelect
+                    value={form.jobCategory}
+                    onValueChange={(v) => updateField("jobCategory", v)}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select Category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {categories.map((c) => (
+                          <SelectItem key={c.categoryId} value={c.categoryId}>
+                            {c.categoryName}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </ShadSelect>
+                </div>
+              </div>
+
+              {/* Roles */}
               <FormControl sx={{ m: 1, width: 300 }}>
                 <InputLabel id="jobrole-label">Job Roles</InputLabel>
                 <Select
                   labelId="jobrole-label"
                   multiple
                   value={form.jobRoles}
-                  onChange={handleJobRolesChange}
+                  onChange={handleMulti("jobRoles")}
                   input={<OutlinedInput label="Job Roles" />}
-                  renderValue={(selected) =>
-                    availableRoles
-                      .filter((r) => selected.includes(r.desiredJobRoleId))
+                  renderValue={(sel) =>
+                    filteredRoles
+                      .filter((r) => sel.includes(r.desiredJobRoleId))
                       .map((r) => r.roleName)
                       .join(", ")
                   }
                   MenuProps={MenuProps}
+                  disabled={!form.jobCategory}
+                  onOpen={(e) => {
+                    if (!form.jobCategory) {
+                      e.preventDefault();
+                      alert("Please select a category first.");
+                    }
+                  }}
                 >
-                  {availableRoles.map((pos) => (
-                    <MenuItem
-                      key={pos.desiredJobRoleId}
-                      value={pos.desiredJobRoleId}
-                    >
-                      <Checkbox
-                        checked={form.jobRoles.includes(
-                          pos.desiredJobRoleId
-                        )}
-                      />
-                      <ListItemText primary={pos.roleName} />
+                  {filteredRoles.map((r) => (
+                    <MenuItem key={r.desiredJobRoleId} value={r.desiredJobRoleId}>
+                      <Checkbox checked={form.jobRoles.includes(r.desiredJobRoleId)} />
+                      <ListItemText primary={r.roleName} />
                     </MenuItem>
                   ))}
                 </Select>
@@ -460,22 +444,20 @@ export default function JobSeekerSignupPage() {
                   labelId="skill-label"
                   multiple
                   value={form.skills}
-                  onChange={handleSkillsChange}
+                  onChange={handleMulti("skills")}
                   input={<OutlinedInput label="Skills" />}
-                  renderValue={(selectedIds) =>
+                  renderValue={(sel) =>
                     availableSkills
-                      .filter((s) => selectedIds.includes(s.skillId))
+                      .filter((s) => sel.includes(s.skillId))
                       .map((s) => s.skillName)
                       .join(", ")
                   }
                   MenuProps={MenuProps}
                 >
-                  {availableSkills.map((skill) => (
-                    <MenuItem key={skill.skillId} value={skill.skillId}>
-                      <Checkbox
-                        checked={form.skills.includes(skill.skillId)}
-                      />
-                      <ListItemText primary={skill.skillName} />
+                  {availableSkills.map((s) => (
+                    <MenuItem key={s.skillId} value={s.skillId}>
+                      <Checkbox checked={form.skills.includes(s.skillId)} />
+                      <ListItemText primary={s.skillName} />
                     </MenuItem>
                   ))}
                 </Select>
@@ -497,13 +479,14 @@ export default function JobSeekerSignupPage() {
             </div>
           )}
 
-          {/* ───────────── STEP 3: EXPERIENCE & AVAILABILITY ───────────── */}
+          {/* STEP 3: EXPERIENCE & AVAILABILITY */}
           {step === 3 && (
-            <div>
-              <h1 className="font-bold text-blue-700 text-2xl mb-5 text-center">
+            <div className="space-y-6">
+              <h1 className="text-2xl font-bold text-blue-700 text-center mb-5">
                 Experience & Availability
               </h1>
-              <div className="grid grid-cols-2 gap-6 my-4">
+
+              <div className="grid grid-cols-2 gap-6">
                 {[
                   {
                     label: "Expected Salary (₹)",
@@ -515,15 +498,15 @@ export default function JobSeekerSignupPage() {
                     name: "experience",
                     type: "number",
                   },
-                ].map((field) => (
-                  <div key={field.name}>
+                ].map((f) => (
+                  <div key={f.name}>
                     <label className="block text-sm font-semibold text-gray-600 py-1">
-                      {field.label}
+                      {f.label}
                     </label>
                     <input
-                      type={field.type}
-                      name={field.name}
-                      value={form[field.name]}
+                      type={f.type}
+                      name={f.name}
+                      value={form[f.name]}
                       onChange={handleChangeSimple}
                       className="mt-1 block w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
@@ -532,25 +515,23 @@ export default function JobSeekerSignupPage() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
-                {/* Availability (job types) */}
-                <div className="flex flex-col">
+                {/* Availability */}
+                <div>
                   <label className="block text-sm font-semibold text-gray-600 py-1">
                     Availability
                   </label>
                   <ShadSelect
                     value={form.availability}
-                    onValueChange={(val) =>
-                      setForm((prev) => ({ ...prev, availability: val }))
-                    }
+                    onValueChange={(v) => updateField("availability", v)}
                   >
-                    <SelectTrigger className="w-auto">
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select Availability" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectGroup>
-                        {jobTypes.map((type) => (
-                          <SelectItem key={type.key} value={type.value}>
-                            {type.value}
+                        {jobTypes.map((t) => (
+                          <SelectItem key={t.key} value={t.value}>
+                            {t.value}
                           </SelectItem>
                         ))}
                       </SelectGroup>
@@ -558,25 +539,23 @@ export default function JobSeekerSignupPage() {
                   </ShadSelect>
                 </div>
 
-                {/* Job Location (Onsite/Remote/Hybrid) */}
-                <div className="flex flex-col">
+                {/* Job Location */}
+                <div>
                   <label className="block text-sm font-semibold text-gray-600 py-1">
                     Preferred Job Location
                   </label>
                   <ShadSelect
                     value={form.jobLocation}
-                    onValueChange={(val) =>
-                      setForm((prev) => ({ ...prev, jobLocation: val }))
-                    }
+                    onValueChange={(v) => updateField("jobLocation", v)}
                   >
-                    <SelectTrigger className="w-auto">
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select Job Location" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectGroup>
-                        {jobLocations.map((loc) => (
-                          <SelectItem key={loc.key} value={loc.value}>
-                            {loc.value}
+                        {jobLocations.map((l) => (
+                          <SelectItem key={l.key} value={l.value}>
+                            {l.value}
                           </SelectItem>
                         ))}
                       </SelectGroup>
@@ -586,17 +565,17 @@ export default function JobSeekerSignupPage() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
-                {/* Available Start Date */}
+                {/* Start Date */}
                 <div>
                   <label className="block text-sm font-semibold text-gray-600 py-1 mt-2">
                     Available Start Date
                   </label>
-                  <Popover>
+                  <Popover open={openCalendar} onOpenChange={setOpenCalendar}>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
                         className={cn(
-                          "w-full md:w-[240px] justify-start text-left font-normal hover:cursor-pointer",
+                          "w-full justify-start text-left font-normal",
                           !form.startDate && "text-muted-foreground"
                         )}
                       >
@@ -606,17 +585,13 @@ export default function JobSeekerSignupPage() {
                           : "Pick a date"}
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
+                    <PopoverContent align="start" className="p-0">
                       <Calendar
                         mode="single"
                         selected={form.startDate}
-                        onSelect={(date) => {
-                          if (date) {
-                            setForm((prev) => ({
-                              ...prev,
-                              startDate: date,
-                            }));
-                          }
+                        onSelect={(d) => {
+                          if (d) updateField("startDate", d);
+                          setOpenCalendar(false);
                         }}
                         initialFocus
                       />
@@ -630,10 +605,7 @@ export default function JobSeekerSignupPage() {
                     id="willingToRelocate"
                     checked={form.willingToRelocate}
                     onChange={(e) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        willingToRelocate: e.target.checked,
-                      }))
+                      updateField("willingToRelocate", e.target.checked)
                     }
                   />
                   <label
@@ -677,16 +649,8 @@ export default function JobSeekerSignupPage() {
             </div>
           )}
 
-          {/* ───────────────────── NAVIGATION BUTTONS ───────────────────── */}
+          {/* NAVIGATION BUTTONS */}
           <div className="flex justify-between pt-4">
-            {step==1 && (
-              <Button
-                type="button"
-                onClick={() => router.push("/job-seeker/dashboard")}
-              >
-                Go to Dashboard
-              </Button>
-            )}
             {step > 1 && (
               <Button
                 type="button"
@@ -706,21 +670,13 @@ export default function JobSeekerSignupPage() {
               </Button>
             )}
             {step === 3 && (
-              submitting ? (
-                <Button
-                  disabled
-                  className="px-4 py-2 bg-gray-400 text-white rounded-lg"
-                >
-                  Uploading...
-                </Button>
-              ) : (
-                <Button
-                  type="submit"
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                >
-                  Submit
-                </Button>
-              )
+              <Button
+                type="submit"
+                disabled={submitting}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+              >
+                {submitting ? "Uploading..." : "Submit"}
+              </Button>
             )}
           </div>
         </form>

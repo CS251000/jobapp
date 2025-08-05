@@ -24,7 +24,6 @@ export async function GET(req) {
       );
     }
 
-    // 1) Fetch base application + profile info
     const apps = await db
       .select({
         jobApplicationId: jobApplications.jobApplicationId,

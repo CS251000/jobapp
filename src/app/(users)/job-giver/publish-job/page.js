@@ -47,7 +47,7 @@ export default function JobPostingPage() {
   const { user, isSignedIn, isLoaded } = useUser();
   const router = useRouter();
   const searchParams= useSearchParams();
-  const companyId = searchParams.get("companyId") || "";
+  const companyId = searchParams.get("companyId");
 
   const [step, setStep] = useState(1);
   const [formTitle, setFormTitle] = useState(STEP_TITLES[1]);

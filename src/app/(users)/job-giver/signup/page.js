@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -34,46 +34,6 @@ export default function CompanyProfilePage() {
   const [isExisting, setIsExisting] = useState(false);
   const [isFetching, setFetching] = useState(false);
 
-  async function fetchCompany() {
-    if (!user) return;
-    setFetching(true);
-    try {
-      const res = await fetch(`/api/get-company?uploaderId=${user.id}`);
-      if (!res.ok) {
-        const { error } = await res.json();
-        throw new Error(error || "Failed to fetch company");
-      }
-      const data = await res.json();
-
-      if (data.isExisting) {
-        setIsExisting(true);
-       
-        setCompanyId(data.companyId);
-
-        setForm((f) => ({
-          ...f,
-          companyId: data.companyId,
-          companyName: data.companyName || "",
-          contactPerson: data.contactPerson || "",
-          email: data.email || "",
-          phone: data.phone || "",
-          website: data.website || "",
-          address: data.address || "",
-          city: data.city || "",
-          state: data.state || "",
-          zip: data.zipCode || "",
-          companyLogoUrl: data.companyLogoUrl || "",
-          aboutCompany: data.aboutCompany || "",
-        }));
-      }
-    } catch (err) {
-      console.error("Failed to fetch company", err);
-    } finally {
-      setFetching(false);
-    }
-  }
-
-  // On load (once user is known), prefill user fields and then fetch existing company
   useEffect(() => {
     if (isLoaded && user) {
       setForm((prev) => ({
@@ -82,6 +42,44 @@ export default function CompanyProfilePage() {
         phone: user.phoneNumbers[0]?.phoneNumber || prev.phone,
         contactPerson: user.fullName || prev.contactPerson,
       }));
+      async function fetchCompany() {
+        if (!user) return;
+        setFetching(true);
+        try {
+          const res = await fetch(`/api/get-company?uploaderId=${user.id}`);
+          if (!res.ok) {
+            const { error } = await res.json();
+            throw new Error(error || "Failed to fetch company");
+          }
+          const data = await res.json();
+
+          if (data.isExisting) {
+            setIsExisting(true);
+
+            setCompanyId(data.companyId);
+
+            setForm((f) => ({
+              ...f,
+              companyId: data.companyId,
+              companyName: data.companyName || "",
+              contactPerson: data.contactPerson || "",
+              email: data.email || "",
+              phone: data.phone || "",
+              website: data.website || "",
+              address: data.address || "",
+              city: data.city || "",
+              state: data.state || "",
+              zip: data.zipCode || "",
+              companyLogoUrl: data.companyLogoUrl || "",
+              aboutCompany: data.aboutCompany || "",
+            }));
+          }
+        } catch (err) {
+          console.error("Failed to fetch company", err);
+        } finally {
+          setFetching(false);
+        }
+      }
       fetchCompany();
     }
   }, [isLoaded, user]);

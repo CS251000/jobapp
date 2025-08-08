@@ -44,24 +44,24 @@ export default function JobPostingInfo() {
             <CardDescription className="mt-1 text-sm text-gray-600">
               Category:{" "}
               <span className="font-medium text-indigo-700">
-                {jobPosting.jobCategory}
+                {jobPosting.jobCategoryName||"N/A"}
               </span>
             </CardDescription>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {/* Status Badge */}
             <Badge className="bg-emerald-600 text-white font-semibold">
-              {jobPosting.status}
+              {jobPosting.status || "N/A"}
             </Badge>
 
             {/* Job Type Badge */}
             <Badge className="bg-indigo-500 text-white font-medium">
-              {jobPosting.jobType}
+              {jobPosting.jobType || "N/A"}
             </Badge>
 
             {/* Location Type Badge */}
             <Badge className="bg-amber-500 text-white font-medium">
-              {jobPosting.jobLocationType}
+              {jobPosting.jobLocationType || "N/A"}
             </Badge>
           </div>
         </CardHeader>
@@ -76,16 +76,16 @@ export default function JobPostingInfo() {
             <div className="space-y-3">
               <p className="text-sm text-gray-700">
                 <span className="font-semibold text-gray-800">Location:</span>{" "}
-                {`${jobPosting.jobLocationAddress}, ${jobPosting.jobLocationCity}, ${jobPosting.jobLocationState} - ${jobPosting.zipCode}`}
+                {`${jobPosting.jobLocationAddress || "N/A"}, ${jobPosting.jobLocationCity || "N/A"}, ${jobPosting.jobLocationState || "N/A"} - ${jobPosting.zipCode || "N/A"}`}
               </p>
               <p className="text-sm text-gray-700">
                 <span className="font-semibold text-gray-800">Experience:</span>{" "}
-                {jobPosting.experienceLevelRequired}
+                {jobPosting.experienceLevelRequired || "N/A"}
               </p>
               <p className="text-sm text-gray-700">
                 <span className="font-semibold text-gray-800">Salary:</span> ₹
-                {jobPosting.salaryMin.toLocaleString()} – ₹
-                {jobPosting.salaryMax.toLocaleString()}
+                {jobPosting.salaryMin?.toLocaleString() || "N/A"} – ₹
+                {jobPosting.salaryMax?.toLocaleString() || "N/A"}
               </p>
               <p className="text-sm text-gray-700">
                 <span className="font-semibold text-gray-800">

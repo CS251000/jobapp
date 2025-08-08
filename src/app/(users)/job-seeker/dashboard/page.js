@@ -4,12 +4,17 @@ import SeekerJobCard from '@/components/dashboard/seekerJobCard';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import React, { useEffect, useState } from 'react';
-
+import Loading from './loading';
+import { useSearchParams } from 'next/navigation';
 
 export default function JobSeekerDashboard() {
   const [jobPostings, setJobPostings] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const searchParams = useSearchParams();
+  const jobSeekerId = searchParams.get('jobSeekerId');
+  const [isApplying, setIsApplying] = useState(false);
 
   useEffect(() => {
     const fetchJobs = async () => {
@@ -29,8 +34,32 @@ export default function JobSeekerDashboard() {
     fetchJobs();
   }, []);
 
+  const handleApply =async (job) => {
+    setIsApplying(true);
+    try{
+      const res =  await fetch('/api/apply-to-job', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          jobSeekerId,
+          jobPostingId: job.jobPostingId,
+        }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      console.log(data);
+    }catch (error) {
+      console.error("Error applying for job:", error);
+      setError(error.message || 'Unknown error');
+    }finally {
+      setIsApplying(false);
+    }
+  };
+
   if (isLoading) {
-    return <p className="text-center p-6">Loading…</p>;
+    return <Loading/>
   }
   if (error) {
     return <p className="text-center text-red-600 p-6">Error: {error}</p>;
@@ -42,11 +71,11 @@ export default function JobSeekerDashboard() {
       <h1 className="text-4xl font-extrabold text-center mb-6">
         Suggested Job Postings
       </h1>
-      <Link href="/job-seeker/dashboard/applications">
+      <Link href={`/job-seeker/dashboard/applications?jobSeekerId=${jobSeekerId}`}>
       <Button>View Your Applications</Button>
       </Link>
       </div>
-      <SeekerJobCard jobPostings={jobPostings} />
+      <SeekerJobCard jobPostings={jobPostings} onApply={handleApply} isApplying={isApplying} />
     </div>
   );
 }

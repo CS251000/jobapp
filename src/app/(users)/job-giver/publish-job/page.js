@@ -46,7 +46,8 @@ const STEP_TITLES = {
 export default function JobPostingPage() {
   const { user, isSignedIn, isLoaded } = useUser();
   const router = useRouter();
-  const companyId = useSearchParams().get("companyId") || "";
+  const searchParams= useSearchParams();
+  const companyId = searchParams.get("companyId") || "";
 
   const [step, setStep] = useState(1);
   const [formTitle, setFormTitle] = useState(STEP_TITLES[1]);

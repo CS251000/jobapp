@@ -57,10 +57,12 @@ export default function JobSeekerSignupPage() {
   // lookups
   const [categories, setCategories] = useState([]);
   const [availableRoles, setAvailableRoles] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [availableSkills, setAvailableSkills] = useState([]);
 
   // form state
   const [form, setForm] = useState({
+    jobSeekerProfileId:"",
     clerkId: "",
     fullName: "",
     email: "",
@@ -102,6 +104,7 @@ export default function JobSeekerSignupPage() {
   // 2. fetch lookups & existing profile
   useEffect(() => {
     if (!isLoaded || !user) return;
+    setLoading(true);
 
     // categories
     fetch("/api/categories")
@@ -133,6 +136,7 @@ export default function JobSeekerSignupPage() {
           setIsExisting(true);
           setForm((p) => ({
             ...p,
+            jobSeekerProfileId: data.jobSeekerProfileId || "",
             fullName: data.fullName || p.fullName,
             email: data.email || p.email,
             phone: data.phone || p.phone,
@@ -158,7 +162,8 @@ export default function JobSeekerSignupPage() {
           }));
         }
       })
-      .catch(console.error);
+      .catch(console.error)
+      .finally(() => setLoading(false));
   }, [isLoaded, user]);
 
   // 3. whenever category changes, clear roles
@@ -267,7 +272,7 @@ export default function JobSeekerSignupPage() {
         body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error((await res.json()).error || "Failed");
-      router.push("/job-seeker/dashboard");
+      router.push(`/job-seeker/dashboard?jobSeekerId=${form.jobSeekerProfileId}`);
     } catch (err) {
       console.error("Submission error:", err);
       alert("Something went wrong. Please try again.");
@@ -276,11 +281,11 @@ export default function JobSeekerSignupPage() {
   };
 
   // require signin
-  if (!isLoaded || !isSignedIn || !user) {
+  if (!isLoaded || !isSignedIn || !user || loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-200">
         <SignInButton mode="modal">
-          <h1 className="text-2xl">Please Sign In to continue</h1>
+          <h1 className="text-2xl">Loading</h1>
         </SignInButton>
       </div>
     );
@@ -651,6 +656,15 @@ export default function JobSeekerSignupPage() {
 
           {/* NAVIGATION BUTTONS */}
           <div className="flex justify-between pt-4">
+            {step==1 &&(
+              <Button
+                type="button"
+                onClick={() =>router.push(`/job-seeker/dashboard?jobSeekerId=${form.jobSeekerProfileId}`)}
+                
+              >
+                Go to Dashboard
+              </Button>
+            )}
             {step > 1 && (
               <Button
                 type="button"

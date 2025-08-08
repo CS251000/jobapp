@@ -8,7 +8,7 @@ import Link from 'next/link'
 
 
 
-export default function SeekerJobCard({ jobPostings}) {
+export default function SeekerJobCard({ jobPostings, onApply,isApplying }) {
   return (
     <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 mx-4">
       {jobPostings.map((job) => (
@@ -30,7 +30,7 @@ export default function SeekerJobCard({ jobPostings}) {
           <CardContent className="space-y-2">
             {job.jobCategory && (
               <p className="text-sm text-[#003049]">
-                <strong>Category:</strong> {job.jobCategory}
+                <strong>Category:</strong> {job.jobCategoryName}
               </p>
             )}
 
@@ -59,6 +59,10 @@ export default function SeekerJobCard({ jobPostings}) {
           </CardContent>
 
           <CardFooter className="flex justify-end space-x-2">
+            <Button size="sm" className={'bg-[#780000] text-[#FDF0D5]'}
+            onClick={() => onApply(job)} disabled={isApplying}>
+              Apply Now
+            </Button>
             <Link
             href={{
               pathname:'/job-seeker/dashboard/job-posting-info',

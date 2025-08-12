@@ -1,17 +1,17 @@
 // app/job-seeker/dashboard/page.js
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { use, useEffect, useState } from "react";
 import SeekerJobApplicationsCard from "@/components/dashboard/seekerJobApplicationsCard";
-import { useUser } from "@clerk/nextjs";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams,useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 
 export default function DashboardPage() {
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
   const searchParams = useSearchParams();
   const jobSeekerId = searchParams.get("jobSeekerId");
-
+  const router= useRouter();
   useEffect(() => {
     if (!jobSeekerId) return;
     console.log("JOB SEEKER ID:", jobSeekerId);
@@ -52,11 +52,12 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="p-4">
+    <div className="p-4 flex flex-row">
       <SeekerJobApplicationsCard
         applications={applications}
         onDelete={handleDelete}
       />
+      <Button onClick={() => router.back()}>Go to Dashboard</Button>
     </div>
   );
 }

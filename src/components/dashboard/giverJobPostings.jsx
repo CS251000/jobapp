@@ -4,11 +4,11 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { formatDate } from '@/utils/constants'
 import Link from 'next/link'
-
-
+import { useRouter } from 'next/navigation'
 
 
 export default function GiverJobPostingCard({ jobPostings,onDelete}) {
+  const router = useRouter();
   return (
     <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 mx-4">
       {jobPostings.map((job) => (
@@ -17,7 +17,20 @@ export default function GiverJobPostingCard({ jobPostings,onDelete}) {
           className={`flex flex-col justify-between w-auto bg-[#FDF0D5]`}
         >
           <CardHeader className="space-y-2">
+            <div className='flex flex-row justify-between'>
             <CardTitle className="text-2xl">{job.jobTitle}</CardTitle>
+            <Link
+            href={{
+              pathname:'/job-giver/dashboard/job-posting-info',
+              query:{
+                jobPosting:encodeURIComponent(JSON.stringify(job)),
+              }
+            }}>
+            <Button size="sm">
+              Info
+            </Button>
+            </Link>
+            </div>
             <div className="flex flex-wrap gap-1">
               <Badge variant="secondary" className={'bg-[#003049] text-[#FDF0D5] font-bold'}>{job.jobType}</Badge>
               <Badge variant="outline" className={'bg-[]#FDF0D5 border border-[#003049] font-bold'}>{job.jobLocationType}</Badge>
@@ -55,30 +68,20 @@ export default function GiverJobPostingCard({ jobPostings,onDelete}) {
 
           </CardContent>
 
-          <CardFooter className="flex space-x-2">
-            <Link
-            href={""}>
-            <Button size="sm" className={'bg-[#003049] text-[#FDF0D5]'}>
-              Applications
+          <CardFooter className="flex flex-row justify-between">  
+            <Button size="sm" className={'bg-[#003049] text-[#FDF0D5]'}
+            onClick={()=>router.push(`dashboard/job-posting-info/job-applications?jobPostingId=${job.jobPostingId}&jobPostingName=${job.jobTitle}`)}
+            >
+              {job.applicantsCount} Applications
             </Button>
-            </Link>
+
             <Link
             href={""}>
             <Button size="sm" className={'bg-[#003049] text-[#FDF0D5]'}>
                Suggestions
             </Button>
             </Link>
-            <Link
-            href={{
-              pathname:'/job-giver/dashboard/job-posting-info',
-              query:{
-                jobPosting:encodeURIComponent(JSON.stringify(job)),
-              }
-            }}>
-            <Button size="sm" className={'bg-[#003049] text-[#FDF0D5]'}>
-              Info
-            </Button>
-            </Link>
+            
             <Button size="sm" className={'bg-[#C1121F] text-[#FDF0D5] hover:bg-[#780000]'}
             onClick={()=>onDelete(job.jobPostingId)}
             >

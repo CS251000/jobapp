@@ -2,12 +2,13 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";                   // your Drizzle client (plain)
 import { 
+  jobApplications,
   jobPostings, 
   jobPostingSkills,
   categories, 
   skills 
 } from "@/db/schema";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm"; // <- added sql
 
 export async function GET(request) {
   try {
@@ -27,7 +28,7 @@ export async function GET(request) {
         postedByClerkUserId:     jobPostings.postedByClerkUserId,
         jobTitle:                jobPostings.jobTitle,
         jobCategory:             jobPostings.jobCategory,
-        jobCategoryName:       categories.categoryName,
+        jobCategoryName:         categories.categoryName,
         jobType:                 jobPostings.jobType,
         jobLocationType:         jobPostings.jobLocationType,
         jobLocationAddress:      jobPostings.jobLocationAddress,
@@ -59,7 +60,7 @@ export async function GET(request) {
       return NextResponse.json([], { status: 200 });
     }
 
-    // 2) Extract all jobPostingIds so we can fetch skills in one shot
+    // 2) Extract all jobPostingIds so we can fetch skills and counts in one shot
     const postingIds = postings.map((p) => p.jobPostingId);
 
     //
@@ -88,34 +89,53 @@ export async function GET(request) {
     });
 
     //
-    // 5) Merge into final result array
+    // 4b) Fetch applicant counts grouped by jobPostingId
+    //
+    const applicantCountRows = await db
+      .select({
+        jobPostingId:  jobApplications.jobPostingId,
+        applicantCount: sql`count(*)`,
+      })
+      .from(jobApplications)
+      .where(inArray(jobApplications.jobPostingId, postingIds))
+      .groupBy(jobApplications.jobPostingId);
+
+    const applicantsCountMap = {};
+    applicantCountRows.forEach((row) => {
+      // row.applicantCount may be BigInt/string depending on DB driver — normalize to Number
+      applicantsCountMap[row.jobPostingId] = Number(row.applicantCount ?? 0);
+    });
+
+    //
+    // 5) Merge into final result array (including skillsRequired and applicantsCount)
     //
     const result = postings.map((jp) => {
       return {
-        jobPostingId:           jp.jobPostingId,
-        postedByClerkUserId:    jp.postedByClerkUserId,
-        jobTitle:               jp.jobTitle,
-        jobCategory:            jp.jobCategory,
-        jobCategoryName:        jp.jobCategoryName,
-        jobType:                jp.jobType,
-        jobLocationType:        jp.jobLocationType,
-        jobLocationAddress:     jp.jobLocationAddress,
-        jobLocationCity:        jp.jobLocationCity,
-        jobLocationState:       jp.jobLocationState,
-        zipCode:                jp.zipCode,
-        jobRole:                jp.jobRole,
-        applicationDeadline:    jp.applicationDeadline,
-        jobDescription:         jp.jobDescription,
-        keyResponsibilities:    jp.keyResponsibilities,
-        requiredQualifications: jp.requiredQualifications,
+        jobPostingId:            jp.jobPostingId,
+        postedByClerkUserId:     jp.postedByClerkUserId,
+        jobTitle:                jp.jobTitle,
+        jobCategory:             jp.jobCategory,
+        jobCategoryName:         jp.jobCategoryName,
+        jobType:                 jp.jobType,
+        jobLocationType:         jp.jobLocationType,
+        jobLocationAddress:      jp.jobLocationAddress,
+        jobLocationCity:         jp.jobLocationCity,
+        jobLocationState:        jp.jobLocationState,
+        zipCode:                 jp.zipCode,
+        jobRole:                 jp.jobRole,
+        applicationDeadline:     jp.applicationDeadline,
+        jobDescription:          jp.jobDescription,
+        keyResponsibilities:     jp.keyResponsibilities,
+        requiredQualifications:  jp.requiredQualifications,
         experienceLevelRequired: jp.experienceLevelRequired,
-        salaryMin:              jp.salaryMin,
-        salaryMax:              jp.salaryMax,
-        howToApply:             jp.howToApply,
-        status:                 jp.status,
-        createdAt:              jp.createdAt,
-        updatedAt:              jp.updatedAt,
-        skillsRequired:         skillsMap[jp.jobPostingId] || [],
+        salaryMin:               jp.salaryMin,
+        salaryMax:               jp.salaryMax,
+        howToApply:              jp.howToApply,
+        status:                  jp.status,
+        createdAt:               jp.createdAt,
+        updatedAt:               jp.updatedAt,
+        skillsRequired:          skillsMap[jp.jobPostingId] || [],
+        applicantsCount:         applicantsCountMap[jp.jobPostingId] || 0, // <- new field
       };
     });
 

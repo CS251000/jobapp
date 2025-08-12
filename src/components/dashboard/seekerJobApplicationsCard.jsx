@@ -13,7 +13,7 @@ export default function SeekerJobApplicationsCard({ applications, onDelete }) {
     if (!confirm("Are you sure you want to withdraw this application?")) return;
     try {
       const res = await fetch(
-        `/api/delete-application?applicationId=${applicationId}`,
+        `/api/delete-job-seeker-application?applicationId=${applicationId}`,
         { method: "DELETE" }
       );
       if (!res.ok) throw new Error("Failed to delete");
@@ -82,7 +82,7 @@ export default function SeekerJobApplicationsCard({ applications, onDelete }) {
             <Button
               size="sm"
               variant="outline"
-              className="border-red-500 text-red-500 hover:bg-red-50"
+              className="border-red-500 text-red-500 hover:bg-red-50 hover:cursor-pointer"
               onClick={() => handleDelete(app.jobApplicationId)}
             >
               Withdraw

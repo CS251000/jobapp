@@ -46,6 +46,7 @@ export default function JobApplicantsPage() {
         setIsLoading(false);
       });
   }, [companyId]);
+  
   const handleDelete = async (jobPostingId) => {
     if (!confirm('Are you sure you want to delete this job posting?')) {
       return;
